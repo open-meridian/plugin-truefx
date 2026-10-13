@@ -1,0 +1,15 @@
+# The e2e's additions to the harness's plugins (the harness's README, "The
+# plugins"): the plugin given a hosts file in which TrueFX's address answers
+# nowhere, so the run never reaches TrueFX and reads only the synthetic feed,
+# in sample data; and the reader (e2e/reader.py), run from this directory in
+# the plugin's own image, which carries the SDK. Paths are absolute, from
+# E2E_DIR, since a later compose file's relative paths resolve against the
+# first file's directory.
+services:
+  truefx:
+    volumes:
+      - ${E2E_DIR:?make e2e exports E2E_DIR}/hosts:/etc/hosts:ro
+  reader:
+    entrypoint: ["python", "-u", "/e2e/reader.py"]
+    volumes:
+      - ${E2E_DIR}:/e2e:ro

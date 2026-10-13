@@ -1,0 +1,6 @@
+# The e2e's hosts file, mounted over the plugin's /etc/hosts (e2e/plugin.yaml):
+# TrueFX's address answers nowhere, so the plugin's first polls fail as they
+# would offline, and the run never reaches TrueFX.
+127.0.0.1 localhost
+::1 localhost
+127.0.0.1 webrates.truefx.com

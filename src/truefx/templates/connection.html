@@ -1,0 +1,14 @@
+{#- The data role's Connection (meridian/roles/data/connection.html), TrueFX's
+    nuance at its blocks only: under "Key", the session, authenticated or
+    not, and when it was opened; under "Limits and use", what did not read.
+    The address is in the tool's answer, kept off the page so it fits one
+    screen. -#}
+{% extends "meridian/roles/data/connection.html" %}
+{% block vendor_rows %}
+{% import "meridian/roles/_rows.html" as om %}
+{% if section == "Key" %}
+{{ om.row("Session", data.session, ("Opened " ~ data.session_opened_at ~ "; " ~ data.sessions_opened ~ (" session" if data.sessions_opened == 1 else " sessions") ~ " opened since start.") if data.session_opened_at else ("The ten pairs TrueFX serves anyone." if data.session == "Unauthenticated" else "Not opened yet.")) }}
+{% elif section == "Limits and use" and data.not_read %}
+{{ om.row("Not read", data.not_read, "Groups of TrueFX's answers that did not read, left unrecorded.") }}
+{% endif %}
+{% endblock %}
