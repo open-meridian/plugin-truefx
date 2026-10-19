@@ -67,7 +67,7 @@ from meridian.plugin.v1 import operations_pb2 as ops
 
 from .client import TrueFX, latest
 from .days import DayBar, DayBook, business_date, day_bounds
-from .declaration import DAILY, LIVE
+from .declared import DAILY, LIVE
 from .history import History
 from .pairs import Pair, PairMap, currencies
 from .rates import Rate

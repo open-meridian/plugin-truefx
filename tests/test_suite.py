@@ -1,7 +1,7 @@
 """The data suite: the role's requirement, which this plugin holds itself to.
 
 A plugin holding `data` is verified for it only by passing every case of the
-suite the SDK carries (meridian.suites, contracts v18 to v22). Each case is
+suite the SDK carries (meridian.suites, contracts v18 to v26). Each case is
 mapped to the plugin's own exchange with the synthetic TrueFX feed and its
 history files (synthetic.py), run through the plugin's real client, rates,
 days, history and work, against the SDK's `Recorder`: its typed operations
@@ -20,9 +20,16 @@ about a kind of data or work (`about`) or a field (`about_field`):
 - a quote with its sizes, and a one-sided quote: TrueFX states its bid and
   offer, both, on every rate, and never a size; its quotes are recorded with
   both sides and no size (test_work.py holds that);
-- calendars and settlement dates: FX quotes need neither.
+- calendars and settlement dates: FX quotes need neither;
+- an event contract's outcomes, disputed or not (contract v23, and v26's
+  event group and flag cases, about outcomes): TrueFX lists no event
+  contract.
 
-Every other case is mapped.
+Every other case is mapped. Contract v26's `queries-the-lake-within-bounds`
+is mapped as the SDK's data template maps it: one bounded query of the kind
+the role reads, its prices, of one subject it records (`lake_query`); the
+plugin itself asks the lake nothing. The cases every suite holds (contract
+v24's replacement and template catalogue, v26's event group) are the SDK's.
 """
 
 from __future__ import annotations
@@ -31,7 +38,8 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from meridian.plugin.v1 import operations_pb2 as ops
-from meridian.suites import Recorder, run, suite
+from meridian.roles.data.testing import lake_query
+from meridian.suites import ANSWERED_BY_SDK, Recorder, run, suite
 
 from conftest import FORMING_NS, INSTANCE, Records, recorder, want, work_on
 
@@ -44,6 +52,9 @@ NEVER_ABOUT = {
     "trades": "nothing trades on TrueFX: its rates are indicative, so it states no trades",
     "calendars": "FX quotes need no settlement calendar: rates recorded as TrueFX states them",
     "settlement dates": "FX quotes need no settlement date: rates recorded as TrueFX states them",
+    # Contract v23: an event contract's outcome.
+    "outcomes": "TrueFX quotes currency pairs: no event contract, so no outcome",
+    "disputed outcomes": "TrueFX quotes currency pairs: no event contract, so no outcome disputed",
 }
 NOT_PRESENTED: dict[str, str] = {
     case.name: NEVER_ABOUT[case.about] for case in suite("data").cases if case.about in NEVER_ABOUT
@@ -126,6 +137,7 @@ def producers(root: Path) -> dict[str, Producer]:
         "a-subject-declined": wanted(yen),
         "a-standing-want-withdrawn": withdrawn,
         "reads-its-datasets-licences": licences,
+        "queries-the-lake-within-bounds": lake_query("LCL-EUR"),
     }
 
 
@@ -133,7 +145,8 @@ def test_every_case_of_the_data_suite_is_mapped_or_not_presented(tmp_path: Path)
     report = run("data", producers(tmp_path), not_presented=NOT_PRESENTED, instance_id=INSTANCE)
     assert report.passed, report.failures
     assert sorted(report.not_presented) == sorted(NOT_PRESENTED)
-    assert len(report.passed_cases) == 10
+    assert len(report.passed_cases) == 11 + len(ANSWERED_BY_SDK)
+    assert report.answered_by_sdk == list(ANSWERED_BY_SDK)
 
 
 def test_a_subject_declined_is_declined_as_not_covered_and_nothing_inverted(

@@ -9,7 +9,10 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
-from truefx.declaration import CATALOGUE, DECLARATION, Config
+from truefx.declaration import DECLARATION
+from truefx.declared import CATALOGUE, Config
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_two_datasets_daily_and_live_on_new_yorks_day_ending_at_17_00() -> None:
@@ -39,7 +42,7 @@ def test_upload_reads_the_same_declaration() -> None:
     printed = subprocess.run(
         [str(Path(sys.executable).parent / "meridian-declaration"),
          "truefx.declaration:DECLARATION"],
-        capture_output=True, text=True, check=True,
+        capture_output=True, text=True, check=True, cwd=ROOT,
     )  # fmt: skip
     datasets = json.loads(printed.stdout)["catalogue"]["datasets"]
     assert [d["key"] for d in datasets] == ["daily", "live"]

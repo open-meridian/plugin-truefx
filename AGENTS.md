@@ -8,9 +8,10 @@ Market Data Web API: what it may publish and subscribe to comes from the role
 `pyproject.toml` declares under `[tool.meridian]` (`data`), once a deployment
 admin approves it.
 
-- `src/truefx/__main__.py` connects to the sidecar declaring the catalogue,
-  the storage and the settings (`declaration.py`) and the pages (`page.py`),
-  serves them, and once the settings have said where to answer from, polls
+- `src/truefx/__main__.py` connects to the sidecar with the version's whole
+  declaration (`declaration.py`: the catalogue, the storage and the settings
+  from `declared.py`, the pages from `page.py` on port 8000, and the
+  documentation in `docs/`), serves the pages, and once the settings have said where to answer from, polls
   TrueFX once a second (`work.keep_current`), hears what the lake wants
   (`plugin.receive(observations_wanted=..., want_withdrawn=...)`) and keeps
   each standing want current.
