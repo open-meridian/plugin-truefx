@@ -1,11 +1,12 @@
 """TrueFX's FX rates as an Open Meridian data plugin.
 
-It connects to the sidecar it is launched beside, declaring its catalogue,
-its storage and its settings (declaration.py) and its pages (page.py), and
-serves them. Once the settings have said where to answer from, it polls
-TrueFX once a second, building each pair's day from the ticks; hears what
-the lake wants of it and records it; keeps each standing want current; and
-records each day as it closes (work.py), until stopped. Everything goes
+It connects to the sidecar it is launched beside with its whole declaration
+(declaration.py): its catalogue, its storage, its settings, its pages
+(page.py) and its documentation; and serves the pages. Once the settings
+have said where to answer from, it polls TrueFX once a second, building
+each pair's day from the ticks; hears what the lake wants of it and records
+it; keeps each standing want current; and records each day as it closes
+(work.py), until stopped. Everything goes
 through the sidecar; nothing but TrueFX's API is called, and with sample
 data not even that (synthetic.py).
 
@@ -30,9 +31,10 @@ import meridian
 from . import raw
 from .client import TrueFX, https
 from .days import DayBook
-from .declaration import DECLARATION, SAMPLE_DATA, USERNAME
+from .declaration import DECLARATION, PORT
+from .declared import SAMPLE_DATA, USERNAME
 from .history import FOLDER, History
-from .page import TITLE, figures_now, hold, pages
+from .page import figures_now, hold, pages
 from .pairs import PairMap
 from .raw import RawStore, storage_root, tend
 from .synthetic import HISTORY, Synthetic, copy_history
@@ -145,16 +147,16 @@ async def run() -> None:
     for stop in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(stop, stopped.set)
 
-    port = int(os.environ.get("TRUEFX_PAGE_PORT", "8000"))
-    async with await meridian.connect(
-        interface=meridian.Interface(port=port, title=TITLE, pages=pages),
-        declaration=DECLARATION,
-    ) as plugin:
+    # The version's whole declaration (declaration.py): its settings, its
+    # catalogue and storage, its pages with the levels each serves and their
+    # tools, and its documentation. A version registers exactly what it was
+    # uploaded with (contract v25).
+    async with await meridian.connect(declaration=DECLARATION) as plugin:
         log.info("registered as %s, roles %s", plugin.identity.instance_id, plugin.identity.roles)
         store = RawStore(storage_root())
         work = built(plugin, store, sample_data=False, username="")
         hold(work)
-        served = pages.serve(plugin, port)
+        served = pages.serve(plugin, PORT)
         configured = asyncio.Event()
         tasks = [
             asyncio.create_task(watch_settings(plugin, work, store, configured)),

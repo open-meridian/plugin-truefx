@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "truefx"
-version = "0.1.0"
+version = "0.2.0"
 description = "TrueFX's FX rates in an Open Meridian deployment's lake: a data plugin"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 # another. The Dockerfile's base is the same version. TrueFX is reached with
 # the standard library's HTTP client, so there is no third-party dependency.
 dependencies = [
-  "open-meridian==0.26.0",
+  "open-meridian==0.31.0",
 ]
 
 [project.urls]
@@ -49,9 +49,9 @@ truefx = ["templates/*.html", "synthetic/*.csv", "synthetic/history/*.csv"]
 roles = ["data"]
 # Whether it serves a page through its sidecar.
 interface = true
-# Its declaration: its catalogue, the storage it asks for its raw responses
-# and its settings. Upload reads it from the built image with
-# `meridian-declaration`.
+# Its whole declaration (contract v25): its catalogue, the storage it asks
+# for its raw responses, its settings, its pages and their tools, and docs/.
+# Upload reads it from the built image with `meridian-declaration`.
 declaration = "truefx.declaration:DECLARATION"
 
 [tool.ruff]

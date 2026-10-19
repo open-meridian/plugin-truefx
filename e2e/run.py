@@ -130,7 +130,7 @@ def rows_of(lines, dataset):
 
 def run():
     started = time.time()
-    compose("down", "-v", "--remove-orphans", check=False)
+    compose("--profile", "runner", "down", "-v", "--remove-orphans", check=False)
     compose("up", "-d")
     for instance in (VENDOR, "reader"):
         runner("ready", "--instance", instance)

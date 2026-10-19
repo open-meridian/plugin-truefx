@@ -39,7 +39,7 @@ from meridian import Figure
 from meridian.roles import data
 from meridian.v1 import sidecar_pb2
 
-from .declaration import CATALOGUE, DAILY, LIVE, VENDOR
+from .declared import CATALOGUE, DAILY, LIVE, VENDOR
 from .work import POLL_SECONDS, Work
 
 TITLE = VENDOR

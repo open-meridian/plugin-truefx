@@ -12,12 +12,15 @@ It is Open Meridian's first FX data plugin (approved 2026-10-13: "start with
 Oanda and TrueFx"). TrueFX is a service of Integral; its rates are
 indicative, not executable, from Integral's network.
 
-**Status.** 0.1.0, built on open-meridian 0.26.0 (contract v22), holding the
-role `data`. Not released, uploaded or launched anywhere.
+**Status.** 0.2.0, built on open-meridian 0.31.0 (contract v26), holding the
+role `data`. Not released, uploaded or launched anywhere. How to set it up
+and use it is in [docs/](docs/README.md), which a deployment shows on its
+Documentation tab (contract v25).
 
 ## What it does
 
-Two datasets, declared from code in its catalogue (`declaration.py`), their
+Two datasets, declared from code in its catalogue (`declared.py`, part of
+the version's whole declaration in `declaration.py`), their
 names approved 2026-10-13:
 
 | Dataset | Data | Modes | Day | Default terms |
@@ -110,7 +113,13 @@ something TrueFX never states is not presented, with why (`tests/test_suite.py`)
 - trades, and every case about a trade's fields: nothing trades on TrueFX;
 - a quote with its sizes, a one-sided quote: TrueFX states both sides, and
   no size;
-- a settlement calendar and a settlement date: FX quotes need neither.
+- a settlement calendar and a settlement date: FX quotes need neither;
+- an event contract's outcomes and its event group: TrueFX lists no event
+  contract.
+
+Contract v26's bounded query of the lake is mapped as the SDK's data
+template maps it; the plugin itself asks the lake nothing. The cases every
+suite holds are the SDK's.
 
 ## TrueFX's terms
 
@@ -185,7 +194,8 @@ level. The plugin has no route that changes anything.
     make e2e
 
 runs the plugin on core's plugin harness, the runtime and harness of the
-core it pins by digest (8774368, contract v22), beside the e2e's reader
+core it pins by digest (17a13a2, contract v26), the harness holding each
+registration to the declaration printed from the image, beside the e2e's reader
 (`e2e/reader.py`, a `reporting` plugin run from the plugin's image, holding
 `custody` to resolve the currencies by their ISO codes and `signal` to read
 quotes), its hosts file sending TrueFX's address nowhere: TrueFX unreachable
