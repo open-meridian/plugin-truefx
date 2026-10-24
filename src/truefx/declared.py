@@ -21,6 +21,12 @@ interface and the documentation (contract v25), so it can import the pages.
 TrueFX's rates are indicative, not executable, from Integral's network: no
 venue's. So neither dataset names a venue, and no row does.
 
+**Their declared delay** (contract v27, `declared_delay_ns`): none. TrueFX
+describes its rates as "live, indicative prices" and states no delay, so
+`live` is declared real time; `daily` is built by the plugin from those
+same polls, each day recorded as it closes, so it is real time too. A
+reader judges their staleness and feed delay against the ceilings alone.
+
 Each licence is the default a deployment's licence confirms or replaces on
 the Data sources page, never a statement of what TrueFX's terms allow: they
 are the deployment admin's to settle (README, "TrueFX's terms").
@@ -51,6 +57,9 @@ USERNAME, SAMPLE_DATA = "username", "sample_data"
 #: Ten years, in days: as far back as TrueFX's files a person puts in
 #: storage may reach (they start in 2009).
 HISTORY_DAYS = 3650
+#: How far behind real time TrueFX serves its rates: not at all, as it
+#: describes them ("live, indicative prices"; truefx.com, read 2026-10-24).
+DECLARED_DELAY_NS = 0
 
 
 @meridian.settings
@@ -86,6 +95,7 @@ CATALOGUE = [
         licence_default=DatasetLicence(kept=True, derived_use=True, display=True),
         day_time_zone=DAY_TIME_ZONE,
         day_end_minute=DAY_END_MINUTE,
+        declared_delay_ns=DECLARED_DELAY_NS,
     ),
     DatasetDeclaration(
         key=LIVE,
@@ -97,6 +107,7 @@ CATALOGUE = [
         licence_default=DatasetLicence(kept=True, retention_days=2, display=True),
         day_time_zone=DAY_TIME_ZONE,
         day_end_minute=DAY_END_MINUTE,
+        declared_delay_ns=DECLARED_DELAY_NS,
     ),
 ]
 

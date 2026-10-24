@@ -28,6 +28,14 @@ def test_two_datasets_daily_and_live_on_new_yorks_day_ending_at_17_00() -> None:
     assert live.licence_default and live.licence_default.retention_days == 2
 
 
+def test_neither_dataset_declares_a_delay() -> None:
+    # Contract v27: TrueFX states its rates live, and the daily dataset is
+    # built from the same polls, so both are declared real time.
+    for dataset in CATALOGUE:
+        assert dataset.declared_delay_ns == 0
+        assert dataset._to_json()["declared_delay_ns"] == 0
+
+
 def test_the_username_secret_and_optional_then_sample_data() -> None:
     declared = cast(Any, Config).declared()
     assert [s.name for s in declared] == ["username", "sample_data"]

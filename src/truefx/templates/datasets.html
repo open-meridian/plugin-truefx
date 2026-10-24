@@ -16,6 +16,6 @@
 {% block vendor_sections %}
 <section class="panel">
 <h2>{{ vendor }}</h2>
-<p class="muted">{{ data.pairs_resolved }} of {{ data.pairs_served }} pairs with both currencies resolved{% if data.currencies_not_resolved %}; not resolved: {{ data.currencies_not_resolved|join(", ") }}{% endif %}. {{ data.days_built }} {{ "day" if data.days_built == 1 else "days" }} built from its polls. {% if data.history_files %}{{ data.history_files }} history {{ "file" if data.history_files == 1 else "files" }}: {{ data.history_months|join(", ") }}{% if data.history_not_read %}; {{ data.history_not_read }} lines did not read{% endif %}.{% else %}No history files in storage.{% endif %} Rows restated {{ data.restated }}, unchanged {{ data.unchanged }}.</p>
+<p class="muted">{{ data.pairs_resolved }} of {{ data.pairs_served }} pairs resolved{% if data.currencies_not_resolved %}; not resolved: {{ data.currencies_not_resolved|join(", ") }}{% endif %}.{% if data.days_built %} {{ data.days_built }} {{ "day" if data.days_built == 1 else "days" }} built from its polls.{% endif %} {% if data.history_files %}{{ data.history_files }} history {{ "file" if data.history_files == 1 else "files" }}, {{ data.history_span }}{% if data.history_not_read %}; {{ data.history_not_read }} lines did not read{% endif %}.{% else %}No history files in storage.{% endif %}{% if data.restated or data.unchanged %} Rows restated {{ data.restated }}, unchanged {{ data.unchanged }}.{% endif %}</p>
 </section>
 {% endblock %}

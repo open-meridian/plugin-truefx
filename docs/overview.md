@@ -19,6 +19,17 @@ Two datasets:
   its mid as a price. Pulled for the latest, or kept current while a reader
   wants it. Kept two days by default.
 
+Neither dataset declares a delay: TrueFX describes its rates as live.
+
+## Liveness
+
+While a reader keeps the live dataset current, each poll TrueFX answers is
+recorded as the dataset's sign of life, once a poll. With a TrueFX username
+the session answers only the pairs that moved, so a quiet second still
+confirms the quotes in force, and a quote unchanged for a while is not taken
+as stale while TrueFX keeps answering. When TrueFX stops answering, nothing
+is recorded, and the quotes age.
+
 ## What a rate means here
 
 A pair is two currencies' cash instruments, each found by its ISO 4217 code.

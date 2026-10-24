@@ -201,6 +201,41 @@ def test_a_standing_live_want_is_kept_current_from_each_poll(tmp_path: Path) -> 
     assert work.standing == {}
 
 
+def test_each_answered_poll_is_the_live_datasets_liveness_while_a_want_stands(
+    tmp_path: Path,
+) -> None:
+    # Contract v27 (ruling 418): with no standing want the live dataset is
+    # not kept current, so nothing is confirmed; with one, each poll TrueFX
+    # answers -- moved or not -- is recorded once, at the poll's time; a
+    # poll that fails records nothing.
+    lake = recorder()
+    work = work_on(lake, tmp_path)
+    ticks = iter(range(LATER_NS, LATER_NS + 100 * 10**9, 10**9))
+    work.clock_ns = work.client.clock_ns = lambda: next(ticks)
+    asyncio.run(work.poll_once())
+    asyncio.run(work.keep_live())
+    assert lake.on("RecordLiveness") == []
+    hear(lake, work, want("WNT-1", "live", ["LCL-EUR"], data_type="meridian.v1.Quote",
+                          standing=True))  # fmt: skip
+    asyncio.run(work.keep_live())
+    asyncio.run(work.keep_live())  # no poll between: nothing new to confirm
+    asyncio.run(work.poll_once())
+    polled = work.client.health.last_ok_ns
+    asyncio.run(work.keep_live())
+
+    def refused(url: str) -> object:
+        raise ConnectionRefusedError(61, "Connection refused")
+
+    work.client.transport = refused  # type: ignore[assignment]
+    asyncio.run(work.poll_once())
+    asyncio.run(work.keep_live())
+    items = [item for sent in lake.on("RecordLiveness") for item in sent.liveness]
+    assert [i.dataset for i in items] == [f"{INSTANCE}:live"] * 2
+    assert items[-1].alive_at_ns == polled
+    assert items[0].alive_at_ns < polled
+    assert all(i.venue_id == "" for i in items)
+
+
 def test_a_subject_another_source_resolved_is_named_by_reading_its_record(
     tmp_path: Path,
 ) -> None:

@@ -1,7 +1,7 @@
 """The data suite: the role's requirement, which this plugin holds itself to.
 
 A plugin holding `data` is verified for it only by passing every case of the
-suite the SDK carries (meridian.suites, contracts v18 to v26). Each case is
+suite the SDK carries (meridian.suites, contracts v18 to v27). Each case is
 mapped to the plugin's own exchange with the synthetic TrueFX feed and its
 history files (synthetic.py), run through the plugin's real client, rates,
 days, history and work, against the SDK's `Recorder`: its typed operations
@@ -23,25 +23,35 @@ about a kind of data or work (`about`) or a field (`about_field`):
 - calendars and settlement dates: FX quotes need neither;
 - an event contract's outcomes, disputed or not (contract v23, and v26's
   event group and flag cases, about outcomes): TrueFX lists no event
-  contract.
+  contract;
+- contract v27's rates cases (about rates): TrueFX quotes currency pairs,
+  recorded as prices and quotes, and publishes no reference rate's fixing,
+  curve or index level;
+- `queries-the-lake-within-bounds`, about trades from contract v27: it
+  records no trades (and asks the lake nothing);
+- `reports-its-feed-delay`, about latency: core receives ReportLatency
+  from contract v28 (ruling 518), so no v27 plugin presents it.
 
-Every other case is mapped. Contract v26's `queries-the-lake-within-bounds`
-is mapped as the SDK's data template maps it: one bounded query of the kind
-the role reads, its prices, of one subject it records (`lake_query`); the
-plugin itself asks the lake nothing. The cases every suite holds (contract
-v24's replacement and template catalogue, v26's event group) are the SDK's.
+Every other case is mapped. Contract v27's `records-a-datasets-liveness`
+is presented: with a standing want on the live dataset, an authenticated
+session's poll answered with nothing moved is TrueFX's heartbeat, recorded
+as the live dataset's liveness (work.py). The cases every suite holds
+(contract v24's replacement and template catalogue, v26's event group) are
+the SDK's.
 """
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from meridian.plugin.v1 import operations_pb2 as ops
-from meridian.roles.data.testing import lake_query
 from meridian.suites import ANSWERED_BY_SDK, Recorder, run, suite
 
-from conftest import FORMING_NS, INSTANCE, Records, recorder, want, work_on
+from truefx.synthetic import Synthetic
+
+from conftest import FORMING_NS, INSTANCE, LATER_NS, Records, recorder, want, work_on
 
 Producer = Callable[[Recorder], Awaitable[None]]
 
@@ -55,12 +65,21 @@ NEVER_ABOUT = {
     # Contract v23: an event contract's outcome.
     "outcomes": "TrueFX quotes currency pairs: no event contract, so no outcome",
     "disputed outcomes": "TrueFX quotes currency pairs: no event contract, so no outcome disputed",
+    # Contract v27: the lake's rates slice.
+    "rates": (
+        "TrueFX quotes currency pairs, recorded as prices and quotes: no reference rate's "
+        "fixing, curve or index level"
+    ),
+    # Contract v27, ruling 518: the feed delay is recorded, not yet reported.
+    "latency": "core receives ReportLatency from contract v28, ruling 515",
 }
 NOT_PRESENTED: dict[str, str] = {
     case.name: NEVER_ABOUT[case.about] for case in suite("data").cases if case.about in NEVER_ABOUT
 } | {
     "a-quote-recorded": "TrueFX states its bid and offer with no size: a quote's sizes are unset",
     "a-one-sided-quote": "TrueFX states both its bid and its offer on every rate it quotes",
+    # Contract v27: the case is about trades.
+    "queries-the-lake-within-bounds": "it records no trades",
 }
 
 
@@ -113,6 +132,30 @@ def producers(root: Path) -> dict[str, Producer]:
         )
         await lake.receive(want_withdrawn=work.on_withdrawn)
 
+    async def heartbeat(lake: Recorder) -> None:
+        # An authenticated session, every step of the feed answered and the
+        # live dataset kept current for a standing want; then a poll a second
+        # later answered with nothing moved, TrueFX's heartbeat: no quote
+        # sent, the live dataset's liveness recorded at that poll.
+        Records().answering(lake)
+        feed = Synthetic()
+        work = work_on(lake, fresh(), username="someone", synthetic=feed)
+        ticks = itertools.count(LATER_NS, 1_000_000_000)
+        work.clock_ns = work.client.clock_ns = lambda: next(ticks)
+        while feed.at < len(feed.feed):
+            await work.poll_once()
+        lake.answer(
+            "ObservationsWanted",
+            lambda _: want("WNT-4", "live", ["LCL-EUR"], data_type="meridian.v1.Quote",
+                           standing=True),
+        )  # fmt: skip
+        await lake.receive(observations_wanted=work.on_want)
+        await work.keep_live()
+        quotes = len(lake.on("RecordQuotes"))
+        assert await work.poll_once() == 0
+        await work.keep_live()
+        assert len(lake.on("RecordQuotes")) == quotes
+
     async def licences(lake: Recorder) -> None:
         lake.answer(
             "ListDatasets",
@@ -137,7 +180,7 @@ def producers(root: Path) -> dict[str, Producer]:
         "a-subject-declined": wanted(yen),
         "a-standing-want-withdrawn": withdrawn,
         "reads-its-datasets-licences": licences,
-        "queries-the-lake-within-bounds": lake_query("LCL-EUR"),
+        "records-a-datasets-liveness": heartbeat,
     }
 
 
@@ -146,6 +189,7 @@ def test_every_case_of_the_data_suite_is_mapped_or_not_presented(tmp_path: Path)
     assert report.passed, report.failures
     assert sorted(report.not_presented) == sorted(NOT_PRESENTED)
     assert len(report.passed_cases) == 11 + len(ANSWERED_BY_SDK)
+    assert "records-a-datasets-liveness" in report.passed_cases
     assert report.answered_by_sdk == list(ANSWERED_BY_SDK)
 
 

@@ -37,3 +37,4 @@ jobs:
           name: e2e-logs
           path: .e2e/*.log
           if-no-files-found: ignore
+          include-hidden-files: true

@@ -41,6 +41,15 @@ it (a weekend, a day not reached yet). A standing want keeps its subjects
 current until withdrawn: the live dataset from each poll, the daily
 dataset's forming day every five minutes.
 
+**Liveness** (contract v27, W10.4; ruling 418): while a standing want keeps
+the live dataset current, each poll TrueFX answers is recorded as the live
+dataset's sign of life (`RecordLiveness`), once a poll. An authenticated
+session answers only the pairs that moved since the last poll, and nothing
+while none did, so a poll answered with nothing is TrueFX's heartbeat: it
+confirms every quote in force, and a reader judges a quote's age from the
+later of its own time and that liveness. Without a standing want the live
+dataset is not kept current, so nothing is confirmed.
+
 **Pushed**: each day the plugin built is recorded once it closes, for every
 pair TrueFX serves this session whose currencies resolved, wanted or not.
 
@@ -165,6 +174,9 @@ class Work:
     pushed: dict[tuple[str, date], int] = field(default_factory=dict)
     #: Subjects whose record names none of TrueFX's currencies.
     unnamed: set[str] = field(default_factory=set)
+    #: The live dataset's liveness last recorded (contract v27): the time of
+    #: the poll TrueFX last answered, as the client kept it.
+    liveness_ns: int = 0
 
     # ── Names ────────────────────────────────────────────────────────────
 
@@ -613,6 +625,25 @@ class Work:
                         prices.append(self.mid(subject, rate))
         await self.send(LIVE, prices, quotes=quotes)
         self.sent_live.update(moved)
+        await self.alive()
+
+    async def alive(self) -> bool:
+        """The live dataset's sign of life (contract v27; ruling 418): the
+        last poll TrueFX answered, moved or not, recorded once a poll -- it
+        confirms every quote in force. Whether it was recorded; a poll that
+        failed records nothing, and a refusal is said, never raised."""
+        alive_ns = self.client.health.last_ok_ns
+        if alive_ns <= self.liveness_ns:
+            return False
+        self.liveness_ns = alive_ns
+        try:
+            await self.plugin.record_liveness(
+                liveness=[ops.DatasetLiveness(dataset=self.dataset(LIVE), alive_at_ns=alive_ns)]
+            )
+        except (meridian.MeridianError, ValueError) as refused:
+            log.warning("the live dataset's liveness not recorded: %s", refused)
+            return False
+        return True
 
     async def keep_daily(self) -> None:
         """The daily dataset's standing wants: yesterday and the forming day."""

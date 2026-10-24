@@ -155,9 +155,20 @@ class Datasets(data.DatasetsRead):
     days_built: int = 0
     history_files: int = 0
     history_months: list[str] = field(default_factory=list)
+    #: The months the history files cover, first to last ("2026-10", or
+    #: "2025-01 to 2026-10"): the page's one line, however many files.
+    history_span: str = ""
     history_not_read: int = 0
     restated: int = 0
     unchanged: int = 0
+
+
+def _span(months: list[str]) -> str:
+    """The months a list of `PAIR YYYY-MM` files covers, first to last."""
+    held = sorted({m.rsplit(" ", 1)[-1] for m in months})
+    if not held:
+        return ""
+    return held[0] if held[0] == held[-1] else f"{held[0]} to {held[-1]}"
 
 
 def _terms(licence: meridian.DatasetLicence | None) -> str:
@@ -238,6 +249,7 @@ def datasets_now() -> Datasets:
         days_built=len(work.book.held_days()),
         history_files=len(work.history.months),
         history_months=months,
+        history_span=_span(months),
         history_not_read=work.history.unread(),
         restated=work.counts.restated,
         unchanged=work.counts.unchanged,
