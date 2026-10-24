@@ -31,7 +31,9 @@ presented honestly. The rows it records are unchanged.
   a person adds (`read_datasets` answers it as `history_span`, beside the
   full `history_months`), says "pairs resolved", and leaves out a count with
   nothing to say (no days built yet, nothing restated or unchanged).
-- **e2e**: the failure's logs under `.e2e/` are uploaded
+- **e2e**: step 6 lists the datasets as the reader sees them: the live
+  dataset's liveness recorded, and no delay declared on either; step 7 reads
+  the new history line. The failure's logs under `.e2e/` are uploaded
   (`include-hidden-files`).
 - **The pins**: open-meridian 0.32.2 and plugin-python:0.32.2 by tag; core
   v27's runtime and harness (a5da59a, merged as 6d346b3, chart 0.1.310) by

@@ -109,6 +109,14 @@ class Reader:
                     self.plugin.receive(prices_recorded=self.on_price,
                                         quotes_recorded=self.on_quote, subjects=query["subject"]))
             return {"following": query["subject"]}
+        if path == "/datasets":
+            # The lake's datasets as a reader lists them (contract v27): each
+            # one's declared delay and its last liveness.
+            answer = await self.plugin.list_datasets()
+            return {"datasets": [
+                {"dataset": d.dataset, "declared_delay_ns": d.declared_delay_ns,
+                 "liveness": [item.alive_at_ns for item in d.liveness]}
+                for d in answer.datasets]}
         if path == "/heard":
             return {"heard": self.heard, "quotes": self.quotes}
         if path == "/quotes":

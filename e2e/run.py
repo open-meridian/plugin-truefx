@@ -22,7 +22,8 @@ to v22), beside a reader (e2e/reader.py), never reaching TrueFX.
    pair's in its quote currency, published at the day's end.
 6. Live: the reader follows the euro, whose latest quote stands as a want of
    the live dataset; the plugin records each EUR pair's top of book, its bid
-   and offer and no size.
+   and offer and no size, and each poll's liveness (contract v27), which the
+   reader lists beside each dataset's declared delay, none.
 7. Parity: the plugin's two read tools answer through the deployment's MCP
    what its two pages show, the data role's fields under its names, the
    username not set and the session unauthenticated, each dataset licensed.
@@ -248,6 +249,14 @@ def run():
          and eur_usd["row_key"] == "EURUSD:q:1791579598512",
          f"step 6, EUR/USD's top of book as TrueFX stated it, no size: {eur_usd}")
 
+    def alive():
+        listed = {d["dataset"]: d for d in read("/datasets")["datasets"]}
+        return listed if listed.get(LIVE, {}).get("liveness") else None
+    listed = until(60, alive, "step 6, the live dataset's liveness was not recorded")
+    must(all(listed[d]["declared_delay_ns"] == 0 for d in (DAILY, LIVE))
+         and max(listed[LIVE]["liveness"]) > 0 and not listed[DAILY]["liveness"],
+         f"step 6, the live dataset alive, no delay declared: {listed}")
+
     # 7. Parity.
     connection = call(named["read_connection"])
     must(connection["mode"] == "Sample data" and connection["session"] == "Unauthenticated"
@@ -270,8 +279,8 @@ def run():
          and served["served"][0]["recorded"] >= 4 * len(PAIRS),
          f"step 7, read_datasets: {served}")
     shown = page(VENDOR, "admin", "/datasets")
-    must("Not licensed yet" not in shown and "10 of 10 pairs with both currencies resolved"
-         in shown, "step 7, the Datasets page shows the same")
+    must("Not licensed yet" not in shown and "10 of 10 pairs resolved." in shown
+         and "3 history files, 2026-10." in shown, "step 7, the Datasets page shows the same")
 
     # 8. Raw responses kept, and the lake's record.
     kept = compose("exec", "-T", VENDOR, "python", "-c",
