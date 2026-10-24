@@ -25,9 +25,9 @@ env:
   # The meridian whose rules the plugin is held to: the rules are compiled
   # into it. Move it deliberately, as the SDK's pin is moved, since a newer
   # one may hold a rule this plugin does not keep yet. `make check` reads it
-  # from here. 0.1.48 holds the suites of contract v26, and checks docs/
+  # from here. 0.1.52 holds the suites of contract v27, and checks docs/
   # (documentation-sections, documentation-safe) as 0.1.46 began to.
-  MERIDIAN_VERSION: 0.1.48
+  MERIDIAN_VERSION: 0.1.52
 
 jobs:
   check:

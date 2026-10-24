@@ -12,7 +12,7 @@ It is Open Meridian's first FX data plugin (approved 2026-10-13: "start with
 Oanda and TrueFx"). TrueFX is a service of Integral; its rates are
 indicative, not executable, from Integral's network.
 
-**Status.** 0.2.0, built on open-meridian 0.31.0 (contract v26), holding the
+**Status.** 0.3.0, built on open-meridian 0.32.2 (contract v27), holding the
 role `data`. Not released, uploaded or launched anywhere. How to set it up
 and use it is in [docs/](docs/README.md), which a deployment shows on its
 Documentation tab (contract v25).
@@ -46,6 +46,17 @@ names approved 2026-10-13:
   reached). A standing want keeps its subjects current until the lake
   withdraws it: the live dataset from each poll, the daily dataset's forming
   day every five minutes.
+- **The live dataset's liveness** (contract v27, ruling 418). While a
+  standing want keeps `live` current, each poll TrueFX answers is recorded
+  as the dataset's sign of life (`RecordLiveness`), once a poll. An
+  authenticated session answers only the pairs that moved, and nothing while
+  none did, so an empty answer is TrueFX's heartbeat: it confirms every quote
+  in force, and a reader judges a quote's age from the later of its own time
+  and that liveness. A failed poll records none; with no standing want the
+  live dataset is not kept current, so nothing is confirmed.
+- **No declared delay** (contract v27, `declared_delay_ns` 0 on both
+  datasets). TrueFX describes its rates as live and states no delay, and the
+  daily dataset is built from the same polls.
 - **The day** is the FX day: New York's, from 17:00 to 17:00 (the calendars
   spec's Q7; reference/fx-and-crypto-identifiers.md). A Sunday evening's
   tick is Monday's; a day is 23 or 25 hours across New York's clock change.
@@ -115,11 +126,17 @@ something TrueFX never states is not presented, with why (`tests/test_suite.py`)
   no size;
 - a settlement calendar and a settlement date: FX quotes need neither;
 - an event contract's outcomes and its event group: TrueFX lists no event
-  contract.
+  contract;
+- contract v27's rates cases: TrueFX's pairs are recorded as prices and
+  quotes, and it publishes no reference rate's fixing, curve or index level;
+- the bounded query of the lake, about trades from contract v27: it records
+  no trades, and asks the lake nothing;
+- its feed delay, about latency: core receives ReportLatency from contract
+  v28 (ruling 518).
 
-Contract v26's bounded query of the lake is mapped as the SDK's data
-template maps it; the plugin itself asks the lake nothing. The cases every
-suite holds are the SDK's.
+Contract v27's liveness case is presented: an authenticated session's empty
+poll, with a standing want on `live`, records the dataset's liveness. The
+cases every suite holds are the SDK's.
 
 ## TrueFX's terms
 
@@ -194,7 +211,7 @@ level. The plugin has no route that changes anything.
     make e2e
 
 runs the plugin on core's plugin harness, the runtime and harness of the
-core it pins by digest (17a13a2, contract v26), the harness holding each
+core it pins by digest (a5da59a, contract v27), the harness holding each
 registration to the declaration printed from the image, beside the e2e's reader
 (`e2e/reader.py`, a `reporting` plugin run from the plugin's image, holding
 `custody` to resolve the currencies by their ISO codes and `signal` to read

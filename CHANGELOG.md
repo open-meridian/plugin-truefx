@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.3.0
+
+On open-meridian 0.32.2, contract v27: the live dataset's liveness recorded,
+the datasets' delay declared, and the suite's v27 cases mapped or not
+presented honestly. The rows it records are unchanged.
+
+- **Liveness** (contract v27, W10.4; ruling 418). While a standing want
+  keeps `live` current, each poll TrueFX answers is recorded as the
+  dataset's sign of life (`RecordLiveness`, `Work.alive`), once a poll, at
+  the poll's time. An authenticated session answers only the pairs that
+  moved, so an empty answer is TrueFX's heartbeat and confirms the quotes in
+  force. A failed poll records nothing, nor does a poll with no standing want
+  on `live`. `records-a-datasets-liveness` is presented.
+- **The declared delay** (contract v27, `declared_delay_ns`): 0 on both
+  datasets, declared explicitly. TrueFX describes its rates as "live,
+  indicative prices" and states no delay; `daily` is built from the same
+  polls.
+- **The bounded lake query is no longer faked.**
+  `queries-the-lake-within-bounds` is about trades from contract v27, and
+  the plugin records none, so it is not presented ("it records no trades")
+  rather than mapped to the SDK's `lake_query`.
+- **The suite's other v27 cases**: the rates cases not presented (no
+  reference rate, curve or index level), and `reports-its-feed-delay` not
+  presented, as ruling 518 says: core receives ReportLatency from contract
+  v28.
+- **The Datasets page fits one screen** at 375, 582 and 1280 px, checked
+  in a browser, before the lake has asked anything too: TrueFX's line gives
+  the history files' months as one span, first to last, however many files
+  a person adds (`read_datasets` answers it as `history_span`, beside the
+  full `history_months`), says "pairs resolved", and leaves out a count with
+  nothing to say (no days built yet, nothing restated or unchanged).
+- **e2e**: the failure's logs under `.e2e/` are uploaded
+  (`include-hidden-files`).
+- **The pins**: open-meridian 0.32.2 and plugin-python:0.32.2 by tag; core
+  v27's runtime and harness (a5da59a, merged as 6d346b3, chart 0.1.310) by
+  tag and digest; `meridian` 0.1.52 in check.yaml.
+- The README, docs/overview.md and the workflows' words about the pins,
+  the liveness and the delay brought up to date.
+
 ## 0.2.0
 
 On open-meridian 0.31.0, contract v26: the plugin moves from contract v22,

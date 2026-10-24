@@ -114,9 +114,10 @@ def test_datasets_answers_what_the_page_shows(tmp_path: Path) -> None:
     assert data["standing_wants"] == 1
     assert {w["want_id"]: w["state"] for w in data["wants"]} == {
         "WNT-1": "Answered", "WNT-2": "Kept current", "WNT-3": "Answered"}  # fmt: skip
-    assert "10 of 10 pairs with both currencies resolved" in page
+    assert "10 of 10 pairs resolved." in page
     assert "Licensed" in page and "Not licensed yet" in page
-    assert "EURUSD 2026-10, GBPUSD 2026-10, USDJPY 2026-10" in page
+    assert data["history_span"] == "2026-10"
+    assert "3 history files, 2026-10." in page
 
 
 def test_the_roles_figures_in_its_order(tmp_path: Path) -> None:
