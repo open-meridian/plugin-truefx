@@ -12,8 +12,9 @@ It is Open Meridian's first FX data plugin (approved 2026-10-13: "start with
 Oanda and TrueFx"). TrueFX is a service of Integral; its rates are
 indicative, not executable, from Integral's network.
 
-**Status.** 0.3.0, built on open-meridian 0.32.2 (contract v27), holding the
-role `data`. Not released, uploaded or launched anywhere. How to set it up
+**Status.** 0.4.0, built on open-meridian 0.33.1 (contract v28: its feed
+delay reported, its quotes judged at the edge), holding the role `data`.
+How to set it up
 and use it is in [docs/](docs/README.md), which a deployment shows on its
 Documentation tab (contract v25).
 
@@ -131,10 +132,14 @@ something TrueFX never states is not presented, with why (`tests/test_suite.py`)
   quotes, and it publishes no reference rate's fixing, curve or index level;
 - the bounded query of the lake, about trades from contract v27: it records
   no trades, and asks the lake nothing;
-- its feed delay, about latency: core receives ReportLatency from contract
-  v28 (ruling 518).
+- contract v28's option chains, filings, holdings, dividends and ratings,
+  which TrueFX never states, and its duplicate and gap cases: its rates are
+  polled and number no message.
 
-Contract v27's liveness case is presented: an authenticated session's empty
+Contract v28's feed delay (ruling 518) and crossed quote (ruling 424) are
+presented: each row recorded unasked or for a standing want has its age at
+the edge recorded and reported every 10 seconds, and is judged by the SDK's
+quality checks (work.py). Contract v27's liveness case is presented: an authenticated session's empty
 poll, with a standing want on `live`, records the dataset's liveness. The
 cases every suite holds are the SDK's.
 

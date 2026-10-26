@@ -27,6 +27,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import meridian
+from meridian.roles import Latency
 
 from . import raw
 from .client import TrueFX, https
@@ -155,6 +156,10 @@ async def run() -> None:
         log.info("registered as %s, roles %s", plugin.identity.instance_id, plugin.identity.roles)
         store = RawStore(storage_root())
         work = built(plugin, store, sample_data=False, username="")
+        # Contract v28 (ruling 518): each row recorded unasked or for a
+        # standing want has its age at the edge recorded, reported every 10
+        # seconds (ReportLatency).
+        work.latency = Latency(plugin)
         hold(work)
         served = pages.serve(plugin, PORT)
         configured = asyncio.Event()
@@ -163,6 +168,7 @@ async def run() -> None:
             asyncio.create_task(hear_wants(plugin, work, configured)),
             asyncio.create_task(keep_current(work, configured)),
             asyncio.create_task(report_health(plugin, work)),
+            asyncio.create_task(work.latency.run()),
         ]
         for task in tasks:
             task.add_done_callback(_said)

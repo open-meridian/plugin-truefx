@@ -121,11 +121,11 @@ class Reader:
             return {"heard": self.heard, "quotes": self.quotes}
         if path == "/quotes":
             answer = await self.plugin.list_quotes(
-                subjects=[ops.SubjectRef(entity_id=s) for s in query["subject"]])
+                subjects=[meridian.SubjectRef(entity_id=s) for s in query["subject"]])
             return {"quotes": [quote_json(q) for q in answer.quotes],
                     "unanswered": unanswered_json(answer)}
         if path == "/prices":
-            asked = {"subjects": [ops.SubjectRef(entity_id=s) for s in query["subject"]]}
+            asked = {"subjects": [meridian.SubjectRef(entity_id=s) for s in query["subject"]]}
             if one("dataset"):
                 asked["sources"] = SourceChoice(named=[one("dataset")])
             if one("kind"):

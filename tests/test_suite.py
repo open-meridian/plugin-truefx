@@ -29,8 +29,13 @@ about a kind of data or work (`about`) or a field (`about_field`):
   curve or index level;
 - `queries-the-lake-within-bounds`, about trades from contract v27: it
   records no trades (and asks the lake nothing);
-- `reports-its-feed-delay`, about latency: core receives ReportLatency
-  from contract v28 (ruling 518), so no v27 plugin presents it.
+- from contract v28, option chains, filings, holdings, dividends and
+  ratings, which TrueFX never states; and the duplicate and gap cases
+  (about quotes): its rates are polled and number no message.
+
+From contract v28 `reports-its-feed-delay` (ruling 518) and
+`a-crossed-quote-is-recorded-invalid` (ruling 424) are presented: quotes
+kept current for a standing want, aged and judged at the edge (work.py).
 
 Every other case is mapped. Contract v27's `records-a-datasets-liveness`
 is presented: with a standing want on the live dataset, an authenticated
@@ -47,9 +52,10 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.roles.data.testing import feed_delay
 from meridian.suites import ANSWERED_BY_SDK, Recorder, run, suite
 
-from truefx.synthetic import Synthetic
+from truefx.synthetic import Stated, Synthetic
 
 from conftest import FORMING_NS, INSTANCE, LATER_NS, Records, recorder, want, work_on
 
@@ -70,8 +76,12 @@ NEVER_ABOUT = {
         "TrueFX quotes currency pairs, recorded as prices and quotes: no reference rate's "
         "fixing, curve or index level"
     ),
-    # Contract v27, ruling 518: the feed delay is recorded, not yet reported.
-    "latency": "core receives ReportLatency from contract v28, ruling 515",
+    # Contract v28 (ruling 602).
+    "option chains": "TrueFX quotes currency pairs: no option chain",
+    "filings": "TrueFX quotes currency pairs: no company's filings",
+    "holdings": "TrueFX quotes currency pairs: no holdings report",
+    "corporate actions": "TrueFX quotes currency pairs: no declared dividend",
+    "ratings": "TrueFX quotes currency pairs: no rating",
 }
 NOT_PRESENTED: dict[str, str] = {
     case.name: NEVER_ABOUT[case.about] for case in suite("data").cases if case.about in NEVER_ABOUT
@@ -80,6 +90,12 @@ NOT_PRESENTED: dict[str, str] = {
     "a-one-sided-quote": "TrueFX states both its bid and its offer on every rate it quotes",
     # Contract v27: the case is about trades.
     "queries-the-lake-within-bounds": "it records no trades",
+    # Contract v28 (about quotes, ruling 602), named through a table: meridian
+    # 0.1.52's check holds contract v27's suites.
+    **{
+        case: "TrueFX's rates are polled and number no message: no sequence to repeat or skip"
+        for case in ("a-duplicate-is-recorded-suspicious", "rows-after-a-gap-are-suspicious")
+    },
 }
 
 
@@ -156,6 +172,32 @@ def producers(root: Path) -> dict[str, Producer]:
         await work.keep_live()
         assert len(lake.on("RecordQuotes")) == quotes
 
+    async def kept_live(lake: Recorder, feed: Synthetic, latency: object = None) -> None:
+        # A standing want of the euro's quote, kept current from TrueFX's
+        # polls: each row recorded unasked, aged and judged at the edge.
+        Records().answering(lake)
+        work = work_on(lake, fresh(), username="someone", synthetic=feed)
+        work.latency = latency
+        await work.poll_once()
+        lake.answer(
+            "ObservationsWanted",
+            lambda _: want("WNT-5", "live", ["LCL-EUR"], data_type="meridian.v1.Quote",
+                           standing=True),
+        )  # fmt: skip
+        await lake.receive(observations_wanted=work.on_want)
+        await work.keep_live()
+
+    async def delayed(lake: Recorder, latency: object) -> None:
+        # Contract v28 (ruling 518): the quotes' age at the edge, reported.
+        await kept_live(lake, Synthetic(), latency)
+
+    async def crossed(lake: Recorder) -> None:
+        # Contract v28 (ruling 424): the euro quoted with its bid above its
+        # offer, recorded invalid by the edge's checks.
+        euro = Stated("EUR/USD", "1791547200003", "1.16440", "1.16434", "1.16495", "1.16359",
+                      "1.16440")  # fmt: skip
+        await kept_live(lake, Synthetic(feed=[[euro]]))
+
     async def licences(lake: Recorder) -> None:
         lake.answer(
             "ListDatasets",
@@ -181,6 +223,8 @@ def producers(root: Path) -> dict[str, Producer]:
         "a-standing-want-withdrawn": withdrawn,
         "reads-its-datasets-licences": licences,
         "records-a-datasets-liveness": heartbeat,
+        "reports-its-feed-delay": feed_delay(delayed),
+        "a-crossed-quote-is-recorded-invalid": crossed,
     }
 
 
@@ -188,7 +232,8 @@ def test_every_case_of_the_data_suite_is_mapped_or_not_presented(tmp_path: Path)
     report = run("data", producers(tmp_path), not_presented=NOT_PRESENTED, instance_id=INSTANCE)
     assert report.passed, report.failures
     assert sorted(report.not_presented) == sorted(NOT_PRESENTED)
-    assert len(report.passed_cases) == 11 + len(ANSWERED_BY_SDK)
+    # Contract v28: the feed delay and a crossed quote too.
+    assert len(report.passed_cases) == 13 + len(ANSWERED_BY_SDK)
     assert "records-a-datasets-liveness" in report.passed_cases
     assert report.answered_by_sdk == list(ANSWERED_BY_SDK)
 
