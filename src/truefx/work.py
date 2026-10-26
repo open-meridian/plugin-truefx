@@ -73,6 +73,7 @@ from typing import Any
 import meridian
 from meridian import Bar, Money, ObservationMeta, Price, Quote, SourceTime
 from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.roles.data.quality import EdgeChecks
 
 from .client import TrueFX, latest
 from .days import DayBar, DayBook, business_date, day_bounds
@@ -177,6 +178,17 @@ class Work:
     #: The live dataset's liveness last recorded (contract v27): the time of
     #: the poll TrueFX last answered, as the client kept it.
     liveness_ns: int = 0
+    #: From 0.4.0 (contract v28, rulings 424 and 518): the plugin's
+    #: `roles.Latency`, where it keeps one -- each row recorded unasked or
+    #: for a standing want has its age at the edge recorded, its feed delay --
+    #: and the SDK's edge checks, judging each such row (a crossed quote
+    #: invalid), as the SDK's `Wants.record` does for the plugins on it.
+    latency: Any = None
+    quality: EdgeChecks = field(default_factory=EdgeChecks)
+
+    def __post_init__(self) -> None:
+        # The edge's checks on the plugin's clock, as it stands each time.
+        self.quality.clock_ns = lambda: self.clock_ns()
 
     # ── Names ────────────────────────────────────────────────────────────
 
@@ -313,7 +325,7 @@ class Work:
     ) -> ObservationMeta:
         return ObservationMeta(
             row_key=row_key,
-            subjects=[ops.SubjectRef(entity_id=subject)],
+            subjects=[meridian.SubjectRef(entity_id=subject)],
             source=ops.Source(dataset=self.dataset(key)),
             valid_from_ns=valid_from_ns,
             valid_until_ns=valid_until_ns,
@@ -415,7 +427,15 @@ class Work:
         want_id: str = "",
     ) -> None:
         """Rows recorded in batches of at most BATCH, against a want where
-        they answer one."""
+        they answer one. Rows recorded unasked or for a standing want are
+        aged and judged at the edge first (contract v28)."""
+        if not want_id or want_id in self.standing:
+            if self.latency is not None:
+                for row in (*prices, *bars, *quotes):
+                    self.latency.aged(self.dataset(key), "AGE_HOP_EDGE", row)
+            prices = self.quality.judged(key, prices)
+            bars = self.quality.judged(key, bars)
+            quotes = self.quality.judged(key, quotes)
         for at in range(0, len(prices), BATCH):
             done = await self.plugin.record_prices(
                 prices=list(prices[at : at + BATCH]), want_id=want_id
@@ -533,7 +553,7 @@ class Work:
         for reason, subjects in sorted(by_reason.items()):
             await self.plugin.decline_want(
                 want_id=want_id,
-                subjects=[ops.SubjectRef(entity_id=s) for s in subjects],
+                subjects=[meridian.SubjectRef(entity_id=s) for s in subjects],
                 reason=reason,
             )
             self.counts.declined += len(subjects)

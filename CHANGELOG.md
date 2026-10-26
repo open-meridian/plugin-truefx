@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.0
+
+On open-meridian 0.33.1, contract v28 (plugin-common-v28), on core v28's
+harness.
+
+- **The feed delay, reported** (ruling 518, required again from contract
+  v28): each row recorded unasked or for a standing want has its age at
+  the edge recorded (`Work.latency`, a `roles.Latency` `__main__` gives it),
+  reported every 10 seconds (`ReportLatency`).
+- **The edge's checks** (ruling 424): the same rows judged by the SDK's
+  `quality.EdgeChecks` on the plugin's clock, as the SDK's `Wants.record`
+  does for the plugins on it; `a-crossed-quote-is-recorded-invalid` is
+  presented on a euro quote whose bid is above its offer.
+- **Not presented** (ruling 602): option chains, filings, holdings,
+  dividends and ratings, which TrueFX never states; the duplicate and gap
+  cases, since its rates are polled and number no message.
+- **`meridian plugin migrate`** (to_0_33_0, to_0_33_1): e2e/reader.py's and
+  work.py's SubjectRefs are `meridian.SubjectRef` (ruling 599).
+- **The pins:** open-meridian 0.33.1 and plugin-python:0.33.1 by tag and
+  digest; core v28's runtime and harness at `8def82a` (chart 0.1.313) by
+  digest; `meridian` stays 0.1.52 in check.yaml.
+- The README's "Not released" line is gone.
+
 ## 0.3.0
 
 On open-meridian 0.32.2, contract v27: the live dataset's liveness recorded,
