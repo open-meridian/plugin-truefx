@@ -12,7 +12,7 @@ It is Open Meridian's first FX data plugin (approved 2026-10-13: "start with
 Oanda and TrueFx"). TrueFX is a service of Integral; its rates are
 indicative, not executable, from Integral's network.
 
-**Status.** 0.5.0, built on open-meridian 0.35.1 (contract v29: its work one
+**Status.** 0.5.0, built on open-meridian 0.35.2 (contract v29: its work one
 class for its role, registered with `meridian.run`; contract v28: its feed
 delay reported, its quotes judged at the edge), holding the role `data`.
 How to set it up

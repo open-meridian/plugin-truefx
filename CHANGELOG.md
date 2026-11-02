@@ -2,7 +2,7 @@
 
 ## 0.5.0
 
-On open-meridian 0.35.1, contract v29 (rulings 1001 to 1005 and 1009 to 1023:
+On open-meridian 0.35.2, contract v29 (rulings 1001 to 1005 and 1009 to 1023:
 each role one class), on core v29's harness.
 
 - **Each role one class:** `Work` is the data role's class
@@ -15,9 +15,9 @@ each role one class), on core v29's harness.
   (was: the process exited), and the days being built are saved in
   `on_stop`. The hand-wired tasks and signal handling are gone; `built`
   answers the parts a source switch takes, not a second `Work`.
-- **The settings are declared untyped** (`Config.declared()`), so the
-  storage kind's window settings reach `on_settings` beside them, which
-  0.35.1's typed delivery leaves out; to be dropped with SDK 0.35.2.
+- **The settings, typed:** `on_settings` receives the declared class, whose
+  `.values` (open-meridian 0.35.2) holds the storage kind's window settings
+  beside its fields, read as before.
 - **The suite's v29 cases:** a derived series and a pool's factor not
   presented, with why.
 - **Tests and preview:** the role class bound to the suite's `Recorder`
@@ -25,9 +25,9 @@ each role one class), on core v29's harness.
 - **e2e:** the reader's three roles (custody, reporting, signal) each a role
   class, run with `meridian.run_async`, hearing only what is recorded once it
   follows (`seed = False`), as its `receive` did.
-- **The pins:** open-meridian 0.35.1 and plugin-python:0.35.1 by tag and
-  digest (`meridian plugin migrate --to 0.35.1`); core v29's runtime and
-  harness at `1ae36f0` (chart 0.1.339) by digest; `meridian` 0.1.56 in
+- **The pins:** open-meridian 0.35.2 and plugin-python:0.35.2 by tag and
+  digest (`meridian plugin migrate --to 0.35.1`, then `--to 0.35.2`); core v29's runtime and
+  harness at `1ae36f0` (chart 0.1.339) by digest; `meridian` 0.1.57 in
   check.yaml (was 0.1.52).
 
 ## 0.4.1

@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 # another. The Dockerfile's base is the same version. TrueFX is reached with
 # the standard library's HTTP client, so there is no third-party dependency.
 dependencies = [
-  "open-meridian==0.35.1",
+  "open-meridian==0.35.2",
 ]
 
 [project.urls]
