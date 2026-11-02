@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.5.0
+
+On open-meridian 0.35.2, contract v29 (rulings 1001 to 1005 and 1009 to 1023:
+each role one class), on core v29's harness.
+
+- **Each role one class:** `Work` is the data role's class
+  (`meridian.roles.data.Role`), its acts made on itself (ruling 1023), and
+  `Latency` given it. `__main__`'s `Lake` adds its lifecycle and is
+  registered with `meridian.run`, which delivers the settings to
+  `on_settings` before anything is heard, hands it the lake's wants, serves
+  the pages and sets the figures (`figures_now`); its polling, health and
+  feed delay are its `run`, started again after a backoff should it fail
+  (was: the process exited), and the days being built are saved in
+  `on_stop`. The hand-wired tasks and signal handling are gone; `built`
+  answers the parts a source switch takes, not a second `Work`.
+- **The settings, typed:** `on_settings` receives the declared class, whose
+  `.values` (open-meridian 0.35.2) holds the storage kind's window settings
+  beside its fields, read as before.
+- **The suite's v29 cases:** a derived series and a pool's factor not
+  presented, with why.
+- **Tests and preview:** the role class bound to the suite's `Recorder`
+  (`recorder.bind`), what it hears handed by `recorder.hear`.
+- **e2e:** the reader's three roles (custody, reporting, signal) each a role
+  class, run with `meridian.run_async`, hearing only what is recorded once it
+  follows (`seed = False`), as its `receive` did.
+- **The pins:** open-meridian 0.35.2 and plugin-python:0.35.2 by tag and
+  digest (`meridian plugin migrate --to 0.35.1`, then `--to 0.35.2`); core v29's runtime and
+  harness at `1ae36f0` (chart 0.1.339) by digest; `meridian` 0.1.57 in
+  check.yaml (was 0.1.52).
+
 ## 0.4.1
 
 SDK 0.33.4: raw-record writes and enum conversion fixes (ruling 937).

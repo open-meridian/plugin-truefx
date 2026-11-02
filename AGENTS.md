@@ -8,13 +8,15 @@ Market Data Web API: what it may publish and subscribe to comes from the role
 `pyproject.toml` declares under `[tool.meridian]` (`data`), once a deployment
 admin approves it.
 
-- `src/truefx/__main__.py` connects to the sidecar with the version's whole
-  declaration (`declaration.py`: the catalogue, the storage and the settings
-  from `declared.py`, the pages from `page.py` on port 8000, and the
-  documentation in `docs/`), serves the pages, and once the settings have said where to answer from, polls
-  TrueFX once a second (`work.keep_current`), hears what the lake wants
-  (`plugin.receive(observations_wanted=..., want_withdrawn=...)`) and keeps
-  each standing want current.
+- `src/truefx/__main__.py` holds the data role's class, `Lake` (`work.py`'s
+  `Work`, open-meridian 0.35: each role one class), and registers it with
+  `meridian.run` and the version's whole declaration (`declaration.py`: the
+  catalogue, the storage and the settings from `declared.py`, the pages from
+  `page.py` on port 8000, and the documentation in `docs/`): `run` serves the
+  pages, delivers the settings to `Lake.on_settings` before anything is
+  heard, hands what the lake wants to `on_observations_wanted` and
+  `on_want_withdrawn`, and runs `Lake.run`, which polls TrueFX once a second
+  (`keep_current`) and keeps each standing want current.
 - **TrueFX's vocabulary is read in one place.** `client.py` is the HTTP
   client (the standard library's: no third-party dependency) and the
   session -- unauthenticated, the address alone, ten pairs in the default
@@ -91,7 +93,7 @@ admin approves it.
   Declare no window setting of your own: the SDK declares
   `responses_window_days` and `responses_past_window`.
 - **Work out a date in core, never by hand** where a settlement date or a
-  calendar's days are needed (`plugin.compute_date`, `plugin.read_calendar`).
+  calendar's days are needed (`self.compute_date`, `self.read_calendar`).
   This plugin needs neither: the FX day is the dataset's declared day, New
   York's ending at 17:00, which is the dataset's declaration, not a
   calendar.

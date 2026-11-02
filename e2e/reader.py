@@ -31,6 +31,7 @@ import meridian
 from meridian import Interface, Page, SourceChoice
 from meridian.operations import as_money
 from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.roles import custody, reporting, signal
 
 PORT = 8088
 LOOP = asyncio.new_event_loop()
@@ -76,43 +77,44 @@ def unanswered_json(answer):
 
 
 class Reader:
-    def __init__(self, plugin):
-        self.plugin = plugin
+    """What the stand-in holds and answers: the records it named, what it
+    heard, and its three role classes (SDK 0.35: each role one class, its
+    acts made through it), which share it."""
+
+    def __init__(self):
         self.heard = []
         self.quotes = []
-        self.following = None
+        self.following = ()
         self.ids = {}
+        self.custody = Custody(self)
+        self.reporting = Reporting(self)
+        self.signal = Signal(self)
 
     async def resolve(self):
         for code in CODES:
             if code not in self.ids:
-                found = await self.plugin.resolve_identifier(
+                found = await self.custody.resolve_identifier(
                     identifiers=[ops.Identifier(scheme="iso4217", value=code)])
                 if not found.instrument_id:
                     raise RuntimeError(f"{code} did not resolve: {found}")
                 self.ids[code] = found.instrument_id
         return dict(self.ids)
 
-    async def on_price(self, heard):
-        self.heard.append(price_json(heard.message.price))
-
-    async def on_quote(self, heard):
-        self.quotes.append(quote_json(heard.message.quote))
-
     async def answer(self, path, query):
         one = lambda name: query.get(name, [""])[0]  # noqa: E731
         if path == "/resolve":
             return await self.resolve()
         if path == "/follow":
-            if self.following is None:
-                self.following = asyncio.ensure_future(
-                    self.plugin.receive(prices_recorded=self.on_price,
-                                        quotes_recorded=self.on_quote, subjects=query["subject"]))
+            if not self.following:
+                # The one stream opened again naming them (SDK 0.35, ruling
+                # 1013).
+                self.following = tuple(query["subject"])
+                self.reporting.hear_again()
             return {"following": query["subject"]}
         if path == "/datasets":
             # The lake's datasets as a reader lists them (contract v27): each
             # one's declared delay and its last liveness.
-            answer = await self.plugin.list_datasets()
+            answer = await self.reporting.list_datasets()
             return {"datasets": [
                 {"dataset": d.dataset, "declared_delay_ns": d.declared_delay_ns,
                  "liveness": [item.alive_at_ns for item in d.liveness]}
@@ -120,7 +122,7 @@ class Reader:
         if path == "/heard":
             return {"heard": self.heard, "quotes": self.quotes}
         if path == "/quotes":
-            answer = await self.plugin.list_quotes(
+            answer = await self.signal.list_quotes(
                 subjects=[meridian.SubjectRef(entity_id=s) for s in query["subject"]])
             return {"quotes": [quote_json(q) for q in answer.quotes],
                     "unanswered": unanswered_json(answer)}
@@ -132,10 +134,50 @@ class Reader:
                 asked["kinds"] = [one("kind")]
             if one("date"):
                 asked["business_date"] = one("date")
-            answer = await self.plugin.list_prices(**asked)
+            answer = await self.reporting.list_prices(**asked)
             return {"prices": [price_json(p) for p in answer.prices],
                     "unanswered": unanswered_json(answer)}
         return {"page": "the e2e's reader"}
+
+
+class Custody(custody.Role):
+    """`custody`: names the currencies' records by their ISO codes."""
+
+    def __init__(self, reader):
+        self.reader = reader
+
+
+class Reporting(reporting.Role):
+    """`reporting`: reads prices and the datasets, and hears the prices
+    recorded for the subjects it follows."""
+
+    # It hears what is recorded once it follows, as `receive` did.
+    seed = False
+
+    def __init__(self, reader):
+        self.reader = reader
+
+    def subjects(self):
+        return self.reader.following
+
+    async def on_prices_recorded(self, heard):
+        self.reader.heard.append(price_json(heard.message.price))
+
+
+class Signal(signal.Role):
+    """`signal`: reads and hears quotes, which `reporting` does not read."""
+
+    # It hears what is recorded once it follows, as `receive` did.
+    seed = False
+
+    def __init__(self, reader):
+        self.reader = reader
+
+    def subjects(self):
+        return self.reader.following
+
+    async def on_quotes_recorded(self, heard):
+        self.reader.quotes.append(quote_json(heard.message.quote))
 
 
 def serve(reader):
@@ -170,15 +212,18 @@ DECLARATION = meridian.Declaration(
 )
 
 
-async def main():
-    # Contract v25: what the stand-in registers is its declaration.
-    plugin = await meridian.connect(declaration=DECLARATION)
-    reader = Reader(plugin)
+def main():
+    reader = Reader()
     threading.Thread(target=serve, args=(reader,), daemon=True).start()
-    while True:
-        await asyncio.sleep(3600)
+    # SDK 0.35: its role classes registered on one connection, which hears
+    # one stream for them, until the harness stops it. Contract v25: what the
+    # stand-in registers is its declaration.
+    LOOP.run_until_complete(meridian.run_async(
+        declaration=DECLARATION,
+        roles=[reader.custody, reader.reporting, reader.signal],
+    ))  # fmt: skip
 
 
 if __name__ == "__main__":
     asyncio.set_event_loop(LOOP)
-    LOOP.run_until_complete(main())
+    main()
