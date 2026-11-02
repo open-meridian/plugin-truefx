@@ -31,7 +31,9 @@ about a kind of data or work (`about`) or a field (`about_field`):
   records no trades (and asks the lake nothing);
 - from contract v28, option chains, filings, holdings, dividends and
   ratings, which TrueFX never states; and the duplicate and gap cases
-  (about quotes): its rates are polled and number no message.
+  (about quotes): its rates are polled and number no message;
+- from contract v29, derived series and pools' factors, which TrueFX never
+  states.
 
 From contract v28 `reports-its-feed-delay` (ruling 518) and
 `a-crossed-quote-is-recorded-invalid` (ruling 424) are presented: quotes
@@ -82,6 +84,9 @@ NEVER_ABOUT = {
     "holdings": "TrueFX quotes currency pairs: no holdings report",
     "corporate actions": "TrueFX quotes currency pairs: no declared dividend",
     "ratings": "TrueFX quotes currency pairs: no rating",
+    # Contract v29 (SDK 0.34.0, 0.35.0).
+    "derived series": "TrueFX's rates are recorded as quoted: no series derived from them",
+    "factors": "TrueFX quotes currency pairs: no pool, so no pool's factor",
 }
 NOT_PRESENTED: dict[str, str] = {
     case.name: NEVER_ABOUT[case.about] for case in suite("data").cases if case.about in NEVER_ABOUT
@@ -129,7 +134,7 @@ def producers(root: Path) -> dict[str, Producer]:
             (records or Records()).answering(lake)
             work = work_on(lake, fresh())
             lake.answer("ObservationsWanted", lambda _: message)
-            await lake.receive(observations_wanted=work.on_want)
+            await lake.hear(work)
 
         return produce
 
@@ -146,7 +151,7 @@ def producers(root: Path) -> dict[str, Producer]:
             "WantWithdrawn",
             lambda _: [ops.WantWithdrawnEvent(want_id="WNT-1", dataset=f"{INSTANCE}:live")],
         )
-        await lake.receive(want_withdrawn=work.on_withdrawn)
+        await lake.hear(work)
 
     async def heartbeat(lake: Recorder) -> None:
         # An authenticated session, every step of the feed answered and the
@@ -165,7 +170,7 @@ def producers(root: Path) -> dict[str, Producer]:
             lambda _: want("WNT-4", "live", ["LCL-EUR"], data_type="meridian.v1.Quote",
                            standing=True),
         )  # fmt: skip
-        await lake.receive(observations_wanted=work.on_want)
+        await lake.hear(work)
         await work.keep_live()
         quotes = len(lake.on("RecordQuotes"))
         assert await work.poll_once() == 0
@@ -184,7 +189,7 @@ def producers(root: Path) -> dict[str, Producer]:
             lambda _: want("WNT-5", "live", ["LCL-EUR"], data_type="meridian.v1.Quote",
                            standing=True),
         )  # fmt: skip
-        await lake.receive(observations_wanted=work.on_want)
+        await lake.hear(work)
         await work.keep_live()
 
     async def delayed(lake: Recorder, latency: object) -> None:
@@ -249,7 +254,7 @@ def test_a_subject_declined_is_declined_as_not_covered_and_nothing_inverted(
                                                      day="2026-10-08"))  # fmt: skip
     import asyncio
 
-    asyncio.run(lake.receive(observations_wanted=work.on_want))
+    asyncio.run(lake.hear(work))
     assert lake.on("RecordPrices") == []
     [declined] = lake.on("DeclineWant")
     assert declined.reason == ops.UNANSWERED_REASON_NOT_COVERED

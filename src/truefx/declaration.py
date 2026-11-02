@@ -26,7 +26,10 @@ from .page import TITLE, pages
 PORT = 8000
 
 DECLARATION = Declaration(
-    settings=Config,
+    # The settings as declared, untyped, so `meridian.run` delivers them with
+    # the storage kind's window settings beside them, which a typed delivery
+    # leaves out on open-meridian 0.35.1: drop after SDK 0.35.2.
+    settings=Config.declared(),  # type: ignore[attr-defined]
     storage=Storage(kinds=[RESPONSES_KIND]),
     catalogue=CATALOGUE,
     interface=meridian.Interface(port=PORT, title=TITLE, pages=pages),

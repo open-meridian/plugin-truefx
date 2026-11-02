@@ -9,7 +9,7 @@
 # BASE is for building against a base made locally rather than a released one:
 # `make image` builds plugin-python:<version>-local from the sibling
 # meridian-python while that version is not published.
-ARG BASE=ghcr.io/open-meridian/plugin-python:0.33.4@sha256:73937d83e947c7a8d2618af7fc846364b96ed85d83314921ae21e51ac4ee95c6
+ARG BASE=ghcr.io/open-meridian/plugin-python:0.35.1@sha256:cdc92bc9c3116e9c96f7fa6f2604517d117ecced3143cd39984834b171a9b614
 FROM ${BASE}
 WORKDIR /plugin
 # Installed from a mount rather than copied, so the image holds the installed

@@ -20,7 +20,7 @@ from conftest import FORMING_NS, INSTANCE, LATER_NS, Records, ns, recorder, want
 
 def hear(lake: Recorder, work: Work, *wants: ops.ObservationsWantedEvent) -> None:
     lake.answer("ObservationsWanted", lambda _: list(wants))
-    asyncio.run(lake.receive(observations_wanted=work.on_want))
+    asyncio.run(lake.hear(work))
 
 
 def prices(lake: Recorder) -> dict[str, ops.Price]:
@@ -197,7 +197,7 @@ def test_a_standing_live_want_is_kept_current_from_each_poll(tmp_path: Path) -> 
     assert lake.on("RecordPrices") == []
     work_withdrawn = ops.WantWithdrawnEvent(want_id="WNT-1", dataset=f"{INSTANCE}:live")
     lake.answer("WantWithdrawn", lambda _: work_withdrawn)
-    asyncio.run(lake.receive(want_withdrawn=work.on_withdrawn))
+    asyncio.run(lake.hear(work))
     assert work.standing == {}
 
 

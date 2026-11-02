@@ -73,6 +73,7 @@ from typing import Any
 import meridian
 from meridian import Bar, Money, ObservationMeta, Price, Quote, SourceTime
 from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.roles import data
 from meridian.roles.data.quality import EdgeChecks
 
 from .client import TrueFX, latest
@@ -110,8 +111,6 @@ MOST_DAYS = 3660
 BATCH = 500
 #: How many of the wants heard the Datasets page lists.
 RECENT = 200
-
-Plugin = Any  # meridian.Plugin, or the suite's Recorder: the SDK's typed operations
 
 
 @dataclass(frozen=True)
@@ -151,10 +150,12 @@ class Counts:
 
 
 @dataclass
-class Work:
-    """The plugin's work: resolving, recording, and answering wants."""
+class Work(data.Role):
+    """The plugin's work, the data role's class (open-meridian 0.35: each
+    role one class), its acts made on itself -- registered with
+    `meridian.run`, or bound to the suite's `Recorder` in its tests:
+    resolving, recording, and answering wants."""
 
-    plugin: Plugin
     client: TrueFX
     pairs: PairMap
     book: DayBook
@@ -218,7 +219,7 @@ class Work:
         if not self.reads_licences:
             return self.licensed
         try:
-            answered = await self.plugin.list_datasets()
+            answered = await self.list_datasets()
         except meridian.NotGranted:
             log.warning("this data plugin may not read its datasets' licences")
             self.reads_licences = False
@@ -242,7 +243,7 @@ class Work:
             if code in self.pairs.ids or (code in self.pairs.missing and not again):
                 continue
             named = [meridian.Identifier(scheme="iso4217", value=code)]
-            found = await self.plugin.resolve_identifier(
+            found = await self.resolve_identifier(
                 identifiers=named, as_of_ns=now, stated_asset_class="cash"
             )
             changed = True
@@ -253,7 +254,7 @@ class Work:
             miss = found.miss_reason or ops.MISS_REASON_NOT_FOUND
             reason = ops.MissReason.Name(miss)
             if self.pairs.missing.get(code) != reason:
-                await self.plugin.report_missing_instrument(
+                await self.report_missing_instrument(
                     source="truefx",
                     asset_class="cash",
                     identifiers=named,
@@ -274,9 +275,7 @@ class Work:
         if known or subject in self.unnamed or not self.reads_instruments:
             return known
         try:
-            found = await self.plugin.resolve_instrument(
-                instrument_id=subject, as_of_ns=self.clock_ns()
-            )
+            found = await self.resolve_instrument(instrument_id=subject, as_of_ns=self.clock_ns())
         except meridian.NotGranted:
             log.warning("this data plugin may not read an instrument's record")
             self.reads_instruments = False
@@ -437,17 +436,13 @@ class Work:
             bars = self.quality.judged(key, bars)
             quotes = self.quality.judged(key, quotes)
         for at in range(0, len(prices), BATCH):
-            done = await self.plugin.record_prices(
-                prices=list(prices[at : at + BATCH]), want_id=want_id
-            )
+            done = await self.record_prices(prices=list(prices[at : at + BATCH]), want_id=want_id)
             self._count(done, key)
         for at in range(0, len(bars), BATCH):
-            done = await self.plugin.record_bars(bars=list(bars[at : at + BATCH]), want_id=want_id)
+            done = await self.record_bars(bars=list(bars[at : at + BATCH]), want_id=want_id)
             self._count(done, key)
         for at in range(0, len(quotes), BATCH):
-            done = await self.plugin.record_quotes(
-                quotes=list(quotes[at : at + BATCH]), want_id=want_id
-            )
+            done = await self.record_quotes(quotes=list(quotes[at : at + BATCH]), want_id=want_id)
             self._count(done, key)
 
     def day_bar(self, pair: Pair, day: date) -> DayBar | None:
@@ -551,7 +546,7 @@ class Work:
         for subject, reason in declined.items():
             by_reason.setdefault(reason, []).append(subject)
         for reason, subjects in sorted(by_reason.items()):
-            await self.plugin.decline_want(
+            await self.decline_want(
                 want_id=want_id,
                 subjects=[meridian.SubjectRef(entity_id=s) for s in subjects],
                 reason=reason,
@@ -559,7 +554,9 @@ class Work:
             self.counts.declined += len(subjects)
             self.sent_to(key).declined += len(subjects)
 
-    async def on_want(self, heard: meridian.Heard[ops.ObservationsWantedEvent]) -> None:
+    async def on_observations_wanted(
+        self, heard: meridian.Heard[ops.ObservationsWantedEvent]
+    ) -> None:
         """Record what the lake wants, or decline it per subject."""
         want = heard.message
         subjects = [s.entity_id for s in want.subjects]
@@ -606,7 +603,7 @@ class Work:
         first = today - timedelta(days=LATEST_DAYS - 1)
         return await self.record_days(subjects, first, today, want.data_type, kinds, want.want_id)
 
-    async def on_withdrawn(self, heard: meridian.Heard[ops.WantWithdrawnEvent]) -> None:
+    async def on_want_withdrawn(self, heard: meridian.Heard[ops.WantWithdrawnEvent]) -> None:
         """A standing want withdrawn: its subjects are no longer kept current."""
         self.standing.pop(heard.message.want_id, None)
 
@@ -657,7 +654,7 @@ class Work:
             return False
         self.liveness_ns = alive_ns
         try:
-            await self.plugin.record_liveness(
+            await self.record_liveness(
                 liveness=[ops.DatasetLiveness(dataset=self.dataset(LIVE), alive_at_ns=alive_ns)]
             )
         except (meridian.MeridianError, ValueError) as refused:

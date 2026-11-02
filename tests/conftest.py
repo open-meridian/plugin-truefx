@@ -98,8 +98,10 @@ def work_on(
     client = TrueFX(store, synthetic or Synthetic(), "synthetic", username, clock_ns=clock)
     history = History(root / HISTORY, f"{HISTORY}/", root / "synthetic" / "history-days")
     history.refresh()
-    return Work(recorder, client, PairMap(root / "synthetic" / "pairs.json"),
+    work = Work(client, PairMap(root / "synthetic" / "pairs.json"),
                 DayBook(root / "synthetic"), history, clock_ns=clock)  # fmt: skip
+    recorder.bind(work)
+    return work
 
 
 def recorder(records: Records | None = None) -> Recorder:

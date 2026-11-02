@@ -36,7 +36,7 @@ def worked(tmp_path: Path, username: str = "") -> tuple[Work, Recorder]:
             want("WNT-3", "daily", ["LCL-JPY"], day="2026-10-08"),
         ],
     )
-    asyncio.run(lake.receive(observations_wanted=work.on_want))
+    asyncio.run(lake.hear(work))
     asyncio.run(work.poll_once())
     work.licensed = frozenset({f"{INSTANCE}:daily"})
     hold(work)

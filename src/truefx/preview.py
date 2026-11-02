@@ -59,7 +59,7 @@ def _work(lake: Recorder) -> Work:
     client = TrueFX(RawStore(root), Synthetic(), "synthetic", clock_ns=lambda: NOW_NS)
     history = History(root / HISTORY, f"{HISTORY}/")
     history.refresh()
-    return Work(lake, client, PairMap(), DayBook(), history, clock_ns=lambda: NOW_NS)
+    return lake.bind(Work(client, PairMap(), DayBook(), history, clock_ns=lambda: NOW_NS))
 
 
 async def _worked() -> Work:
@@ -79,7 +79,7 @@ async def _worked() -> Work:
             business_date=day.isoformat(),
         )
         lake.answer("ObservationsWanted", _delivering(want))
-        await lake.receive(observations_wanted=work.on_want)
+        await lake.hear(work)
     for n, subject in enumerate(("LCL-EUR", "LCL-GBP")):
         want = ops.ObservationsWantedEvent(
             want_id=f"WNT-L{n}",
@@ -89,7 +89,7 @@ async def _worked() -> Work:
             standing=True,
         )
         lake.answer("ObservationsWanted", _delivering(want))
-        await lake.receive(observations_wanted=work.on_want)
+        await lake.hear(work)
     work.licensed = frozenset({work.dataset("daily")})
     return work
 
