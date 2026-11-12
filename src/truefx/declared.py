@@ -11,12 +11,12 @@ interface and the documentation (contract v25), so it can import the pages.
   mid), its closing bid and offer as prices of kind bid and ask, and its bar
   of the mid -- on New York's day ending at 17:00 (`day_time_zone`
   America/New_York, `day_end_minute` 1020), the FX day. Pulled for what
-  the lake wants, and pushed as each day closes; kept. Its history reaches
+  the lake wants, and pushed as each day closes. Its history reaches
   as far back as the TrueFX history files a person puts in the plugin's
   storage (history.py), and otherwise to the first day it polled.
 - `live`: TrueFX's top of book, its bid and offer as a quote and its mid as
   a price, polled once a second; pulled for the latest, or kept current for
-  a standing want; kept two days.
+  a standing want.
 
 TrueFX's rates are indicative, not executable, from Integral's network: no
 venue's. So neither dataset names a venue, and no row does.
@@ -27,9 +27,16 @@ describes its rates as "live, indicative prices" and states no delay, so
 same polls, each day recorded as it closes, so it is real time too. A
 reader judges their staleness and feed delay against the ceilings alone.
 
-Each licence is the default a deployment's licence confirms or replaces on
-the Data sources page, never a statement of what TrueFX's terms allow: they
-are the deployment admin's to settle (README, "TrueFX's terms").
+**Their terms and pricing** (contract 30, ruling 1032): TrueFX's terms in
+plain words (`terms_and_pricing`), shown on Data sources and in the plugin's
+docs, never a licence: the licence a deployment admin sets is the one
+enforced, and TrueFX's terms are the deployment admin's to settle (README,
+"TrueFX's terms").
+
+**How a gap is recovered** (contract 30, `gap_recovery`): `daily` by
+`backfill` -- the lake asks again for the days, which the plugin builds
+again from its polls and the history files it holds -- and `live` is
+`stream_only`: a tick missed is never served again.
 
 **Its storage**: one kind of raw record, TrueFX's responses as received,
 kept a week by default (raw.py); the SDK declares the kind's two window
@@ -46,7 +53,7 @@ TrueFX's API asks for no password and no token (client.py).
 from __future__ import annotations
 
 import meridian
-from meridian import DatasetDeclaration, DatasetLicence, RecordKind
+from meridian import DatasetDeclaration, RecordKind
 
 from .days import DAY_END_MINUTE, DAY_TIME_ZONE
 from .raw import KIND, LABEL, WINDOW_DAYS
@@ -57,6 +64,16 @@ USERNAME, SAMPLE_DATA = "username", "sample_data"
 #: Ten years, in days: as far back as TrueFX's files a person puts in
 #: storage may reach (they start in 2009).
 HISTORY_DAYS = 3650
+#: TrueFX's terms and pricing in plain words (contract 30, ruling 1032), as
+#: truefx.com describes its service: what it serves, who, and at what cost.
+TERMS = (
+    "TrueFX is a service of Integral Development Corp.: indicative, not executable, "
+    "foreign-exchange rates from Integral's network, named for no venue. Free of charge: "
+    "without an account its API serves 10 pairs, and a registered, confirmed account's "
+    "username opens an authenticated session of 27 pairs; its monthly history files are "
+    "for account holders to download from its website. TrueFX's own terms on "
+    "truefx.com govern the use of its data; check them there, as they can change."
+)
 #: How far behind real time TrueFX serves its rates: not at all, as it
 #: describes them ("live, indicative prices"; truefx.com, read 2026-10-24).
 DECLARED_DELAY_NS = 0
@@ -92,7 +109,8 @@ CATALOGUE = [
         modes=["pull", "push"],
         cadence=86_400,
         history=HISTORY_DAYS,
-        licence_default=DatasetLicence(kept=True, derived_use=True, display=True),
+        terms_and_pricing=TERMS,
+        gap_recovery="backfill",
         day_time_zone=DAY_TIME_ZONE,
         day_end_minute=DAY_END_MINUTE,
         declared_delay_ns=DECLARED_DELAY_NS,
@@ -104,7 +122,8 @@ CATALOGUE = [
         modes=["pull", "stream"],
         cadence=1,
         history=0,
-        licence_default=DatasetLicence(kept=True, retention_days=2, display=True),
+        terms_and_pricing=TERMS,
+        gap_recovery="stream_only",
         day_time_zone=DAY_TIME_ZONE,
         day_end_minute=DAY_END_MINUTE,
         declared_delay_ns=DECLARED_DELAY_NS,
