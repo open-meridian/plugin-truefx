@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.6.0
+
+On open-meridian 0.36.0, contract 30, on core aae501d's harness (chart
+0.1.538); `meridian` 0.1.60 in the check.
+
+- **TrueFX's terms and pricing in words** (ruling 1032): each dataset's
+  `licence_default` is gone, and `terms_and_pricing` describes TrueFX's
+  service as truefx.com does -- Integral's indicative rates, free, 10 pairs
+  without an account and 27 with one, history files for account holders --
+  shown on Data sources and in the Datasets page's row details. The licence
+  a deployment admin sets is the one enforced; the plugin states none.
+- **How a gap is recovered** (`gap_recovery`): `daily` by `backfill` (the
+  lake asks for the days again, built again from the polls and the history
+  files held); `live` `stream_only` (a missed tick is never served again).
+  No `sessions_calendar_id` yet: the platform's calendar master holds no FX
+  week calendar, so readers keep the SDK's `sessions.FX_WEEK`.
+- **Row keys checked against the lake's rule 5** (ruled 2026-11-12): a
+  day's rows (`EURUSD:close:<day>`, `:bid:`, `:ask:`, `:1d:`) are restated
+  as the day fills and when a history file replaces a day built from polls,
+  always over the same day and the same base currency; a live quote or mid
+  is keyed by its own millisecond and never restated. No restatement
+  changes a row's valid time or first subject.
+- Pins: core's runtime and harness images at `aae501d`, by digest.
+
 ## 0.5.0
 
 On open-meridian 0.35.2, contract v29 (rulings 1001 to 1005 and 1009 to 1023:

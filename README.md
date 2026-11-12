@@ -12,9 +12,11 @@ It is Open Meridian's first FX data plugin (approved 2026-10-13: "start with
 Oanda and TrueFx"). TrueFX is a service of Integral; its rates are
 indicative, not executable, from Integral's network.
 
-**Status.** 0.5.0, built on open-meridian 0.35.2 (contract v29: its work one
-class for its role, registered with `meridian.run`; contract v28: its feed
-delay reported, its quotes judged at the edge), holding the role `data`.
+**Status.** 0.6.0, built on open-meridian 0.36.0 (contract 30: TrueFX's
+terms and pricing described in words, and how a gap in each dataset is
+recovered; contract v29: its work one class for its role, registered with
+`meridian.run`; contract v28: its feed delay reported, its quotes judged at
+the edge), holding the role `data`.
 How to set it up
 and use it is in [docs/](docs/README.md), which a deployment shows on its
 Documentation tab (contract v25).
@@ -25,10 +27,10 @@ Two datasets, declared from code in its catalogue (`declared.py`, part of
 the version's whole declaration in `declaration.py`), their
 names approved 2026-10-13:
 
-| Dataset | Data | Modes | Day | Default terms |
+| Dataset | Data | Modes | Day | A gap recovered by |
 |---|---|---|---|---|
-| `<instance>:daily` | each pair's day: its close (the last mid), its closing bid and offer, as prices of kind `close`, `bid` and `ask`; and its bar of the mid | pull, push | `America/New_York`, ending at 17:00 | kept |
-| `<instance>:live` | TrueFX's top of book: its bid and offer as a quote, its mid as a price of kind `mid` | pull, stream | `America/New_York`, ending at 17:00 | kept two days |
+| `<instance>:daily` | each pair's day: its close (the last mid), its closing bid and offer, as prices of kind `close`, `bid` and `ask`; and its bar of the mid | pull, push | `America/New_York`, ending at 17:00 | backfill: the lake asks for the days again |
+| `<instance>:live` | TrueFX's top of book: its bid and offer as a quote, its mid as a price of kind `mid` | pull, stream | `America/New_York`, ending at 17:00 | the stream only: a missed tick is never served again |
 
 - **A pair is two cash instruments** (meridian-design `spec/the-lake.md`, Q3;
   ruled 2026-10-13, the spot-FX plugin's Q6: no pair record). Each currency
@@ -149,11 +151,12 @@ cases every suite holds are the SDK's.
 ## TrueFX's terms
 
 TrueFX's terms for its data, and whether a deployment's use meets them, are
-the deployment admin's to settle with TrueFX, never this plugin's: the
-catalogue's default terms are a starting point the deployment's licence on
-the Data sources page confirms or replaces. TrueFX describes its data as
-indicative, not executable. Nothing here says that a deployment meets
-TrueFX's terms.
+the deployment admin's to settle with TrueFX, never this plugin's. Each
+dataset describes TrueFX's terms and pricing in words (`terms_and_pricing`,
+contract 30), shown on the Data sources page and the Datasets page: never a
+licence, which the deployment admin sets on the Data sources page. TrueFX
+describes its data as indicative, not executable. Nothing here says that a
+deployment meets TrueFX's terms.
 
 **No real TrueFX response is committed** to this public repository: the
 tests and sample data use a synthetic feed and history files
@@ -183,8 +186,9 @@ the reading roles.
   the last call and the last error; "Stream" -- "Does not stream": TrueFX's
   API is polled.
 - **Datasets**: "Served" -- each dataset of its catalogue, its data, how its
-  rows arrive, its day, its default terms and whether a deployment admin has
-  licensed it, what it recorded and declined and when it last recorded;
+  rows arrive, its day, TrueFX's terms and pricing and whether a deployment
+  admin has licensed it, what it recorded and declined and when it last
+  recorded;
   "Wants" -- the wants it heard and the standing wants it keeps current,
   searched and paged by the kit's `om-pager`; "Subjects"; then a section
   under TrueFX's name: the pairs with both currencies resolved, the

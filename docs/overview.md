@@ -17,7 +17,8 @@ Two datasets:
   Pushed as each day closes, and pulled for a past day the lake wants.
 - **`<instance>:live`**, TrueFX's top of book: its bid and offer as a quote,
   its mid as a price. Pulled for the latest, or kept current while a reader
-  wants it. Kept two days by default.
+  wants it. A tick missed is never served again: a gap in it is not
+  recovered, while a gap in the daily dataset is asked for again.
 
 Neither dataset declares a delay: TrueFX describes its rates as live.
 

@@ -14,8 +14,9 @@ template's; TrueFX's nuance is added only at the template's blocks:
   second -- its calls, the last call and the last error; and "Stream":
   TrueFX's API is polled, so "Does not stream".
 - **Datasets** (`/datasets`, `read_datasets`): "Served" -- each dataset of
-  its catalogue, its data, how its rows arrive, its day, its default terms
-  and whether a deployment admin has licensed it (contract v20), and what it
+  its catalogue, its data, how its rows arrive, its day, TrueFX's terms
+  and pricing in words (contract 30) and whether a deployment admin has
+  licensed it (contract v20), and what it
   recorded and declined and when it last recorded -- "Wants", each want
   heard and each standing want it keeps current, searched and paged by the
   kit's `om-pager` -- "Subjects" -- then a section under TrueFX's name: the
@@ -171,18 +172,6 @@ def _span(months: list[str]) -> str:
     return held[0] if held[0] == held[-1] else f"{held[0]} to {held[-1]}"
 
 
-def _terms(licence: meridian.DatasetLicence | None) -> str:
-    if licence is None:
-        return ""
-    said = ["kept" if licence.kept else "served, not kept"]
-    if licence.retention_days:
-        said.append(f"{licence.retention_days} days")
-    said.append("display" if licence.display else "no display")
-    if licence.personal_use:
-        said.append("one person's")
-    return ", ".join(said)
-
-
 def _arrives(mode: object) -> str:
     if isinstance(mode, int):
         named = str(sidecar_pb2.ObservationMode.Name(mode))
@@ -208,7 +197,7 @@ def datasets_now() -> Datasets:
                 arrives=", ".join(_arrives(m) for m in declared.modes),
                 day=f"{declared.day_time_zone}, ends {declared.day_end_minute // 60:02d}:"
                 f"{declared.day_end_minute % 60:02d}",
-                default_terms=_terms(declared.licence_default),
+                default_terms=declared.terms_and_pricing,
                 entitled_at_vendor=_entitled(work),
                 recorded=sent.recorded if sent else 0,
                 declined=sent.declined if sent else 0,

@@ -24,8 +24,12 @@ def test_two_datasets_daily_and_live_on_new_yorks_day_ending_at_17_00() -> None:
     daily, live = CATALOGUE
     assert list(daily.data_types) == ["meridian.v1.Price", "meridian.v1.Bar"]
     assert list(live.data_types) == ["meridian.v1.Price", "meridian.v1.Quote"]
-    assert daily.licence_default and daily.licence_default.kept
-    assert live.licence_default and live.licence_default.retention_days == 2
+    # Contract 30 (ruling 1032): TrueFX's terms in words, never a licence;
+    # a gap in the days is asked for again, a missed tick never served again.
+    assert daily.terms_and_pricing == live.terms_and_pricing
+    assert "indicative" in daily.terms_and_pricing and len(daily.terms_and_pricing) <= 2000
+    assert (daily.gap_recovery, live.gap_recovery) == ("backfill", "stream_only")
+    assert not daily.sessions_calendar_id and not live.sessions_calendar_id
 
 
 def test_neither_dataset_declares_a_delay() -> None:
