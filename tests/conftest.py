@@ -117,6 +117,7 @@ def want(
     data_type: str = "meridian.v1.Price",
     kinds: tuple[int, ...] = (),
     standing: bool = False,
+    interval_ns: int = 0,
 ) -> ops.ObservationsWantedEvent:
     return ops.ObservationsWantedEvent(
         want_id=want_id,
@@ -126,4 +127,5 @@ def want(
         kinds=[ops.PriceKind.Name(k) for k in kinds],
         business_date=day,
         standing=standing,
+        interval_ns=interval_ns,
     )
