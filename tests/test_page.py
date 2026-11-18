@@ -109,6 +109,9 @@ def test_datasets_answers_what_the_page_shows(tmp_path: Path) -> None:
     assert [s["dataset"] for s in data["served"]] == [f"{INSTANCE}:daily", f"{INSTANCE}:live"]
     assert [s["licensed"] for s in data["served"]] == [True, False]
     assert data["served"][0]["day"] == "America/New_York, ends 17:00"
+    # Item 95: live serves one-minute bars, and the page says how.
+    assert [s["data"] for s in data["served"]] == ["Price, Bar", "Price, Quote, Bar"]
+    assert "Live bars are a minute long" in page
     assert data["pairs_served"] == 10 and data["pairs_resolved"] == 10
     assert data["history_months"] == ["EURUSD 2026-10", "GBPUSD 2026-10", "USDJPY 2026-10"]
     assert data["standing_wants"] == 1

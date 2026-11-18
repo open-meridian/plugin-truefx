@@ -2,7 +2,8 @@
 
 TrueFX's FX rates in an Open Meridian deployment's lake: a data plugin. It
 records TrueFX's top of book for each currency pair -- the bid and offer as a
-quote, the mid as a price -- and each pair's day, built from TrueFX's ticks
+quote, the mid as a price, and a one-minute bar of the mid -- and each pair's
+day, built from TrueFX's ticks
 on New York's day ending at 17:00: its close, its closing bid and offer, and
 its bar. Every rate is recorded exactly as TrueFX quotes it, each pair named
 as two cash instruments resolved through the master, nothing inverted or
@@ -12,7 +13,7 @@ It is Open Meridian's first FX data plugin (approved 2026-10-13: "start with
 Oanda and TrueFx"). TrueFX is a service of Integral; its rates are
 indicative, not executable, from Integral's network.
 
-**Status.** 0.6.0, built on open-meridian 0.36.0 (contract 30: TrueFX's
+**Status.** 0.7.0, built on open-meridian 0.36.0 (contract 30: TrueFX's
 terms and pricing described in words, and how a gap in each dataset is
 recovered; contract v29: its work one class for its role, registered with
 `meridian.run`; contract v28: its feed delay reported, its quotes judged at
@@ -30,7 +31,7 @@ names approved 2026-10-13:
 | Dataset | Data | Modes | Day | A gap recovered by |
 |---|---|---|---|---|
 | `<instance>:daily` | each pair's day: its close (the last mid), its closing bid and offer, as prices of kind `close`, `bid` and `ask`; and its bar of the mid | pull, push | `America/New_York`, ending at 17:00 | backfill: the lake asks for the days again |
-| `<instance>:live` | TrueFX's top of book: its bid and offer as a quote, its mid as a price of kind `mid` | pull, stream | `America/New_York`, ending at 17:00 | the stream only: a missed tick is never served again |
+| `<instance>:live` | TrueFX's top of book: its bid and offer as a quote, its mid as a price of kind `mid`; and each pair's one-minute bar of the mid | pull, stream | `America/New_York`, ending at 17:00 | the stream only: a missed tick is never served again |
 
 - **A pair is two cash instruments** (meridian-design `spec/the-lake.md`, Q3;
   ruled 2026-10-13, the spot-FX plugin's Q6: no pair record). Each currency
@@ -48,8 +49,21 @@ names approved 2026-10-13:
   serves has it as the base), `beyond_history` (before the first day the
   plugin holds), `source_silent` (TrueFX said nothing: a weekend, a day not
   reached). A standing want keeps its subjects current until the lake
-  withdraws it: the live dataset from each poll, the daily dataset's forming
-  day every five minutes.
+  withdraws it: the live dataset's quotes and mids from each poll, its bars
+  as each minute closes, the daily dataset's forming day every five minutes.
+- **One-minute bars on `live`** (item 95: live data recorded thinned, one
+  row per pair per minute, never every tick). A want of bars on `live` a
+  minute long (`interval_ns` 60 s, or 0, naming no length) is kept current
+  with each pair's minute as it closes: the open, high, low and close of the
+  mid over the ticks polled in it, valid over the minute, published at its
+  end, volume 0, keyed `<PAIR>:1m:<the minute's first millisecond>` and
+  recorded once. A pair with no tick in a minute has no bar for it. The
+  minute the plugin starts in, and a minute a failed poll or a lost session
+  falls in, is not heard whole, so it is never a bar: none is recorded twice
+  across a restart, and none is made up. A want asked once before any
+  minute closed is `source_silent`; a want of bars of any other length is
+  `not_covered`. Bars are judged at the edge apart from the quotes, and not
+  aged: the live dataset's feed delay stays its quotes' and mids'.
 - **The live dataset's liveness** (contract v27, ruling 418). While a
   standing want keeps `live` current, each poll TrueFX answers is recorded
   as the dataset's sign of life (`RecordLiveness`), once a poll. An
@@ -192,8 +206,9 @@ the reading roles.
   "Wants" -- the wants it heard and the standing wants it keeps current,
   searched and paged by the kit's `om-pager`; "Subjects"; then a section
   under TrueFX's name: the pairs with both currencies resolved, the
-  currencies not resolved, the days built from its polls, and the history
-  files held and the months they cover.
+  currencies not resolved, the days built from its polls, that the live
+  dataset's bars are a minute long, and the history files held and the
+  months they cover.
 
 Its Summary carries the data role's figures, in the role's order:
 Connection, Entitled at the vendor, Stream and Last recorded.

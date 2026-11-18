@@ -23,7 +23,8 @@ def test_two_datasets_daily_and_live_on_new_yorks_day_ending_at_17_00() -> None:
         assert dataset.venue_id == "", "TrueFX's rates are indicative: no venue's"
     daily, live = CATALOGUE
     assert list(daily.data_types) == ["meridian.v1.Price", "meridian.v1.Bar"]
-    assert list(live.data_types) == ["meridian.v1.Price", "meridian.v1.Quote"]
+    # Item 95: live serves one-minute bars of the mid too.
+    assert list(live.data_types) == ["meridian.v1.Price", "meridian.v1.Quote", "meridian.v1.Bar"]
     # Contract 30 (ruling 1032): TrueFX's terms in words, never a licence;
     # a gap in the days is asked for again, a missed tick never served again.
     assert daily.terms_and_pricing == live.terms_and_pricing

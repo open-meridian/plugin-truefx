@@ -2,7 +2,8 @@
 converted at the edge.
 
 **Two datasets** (declaration.py): `live`, TrueFX's top of book as it polls
-it, the bid and offer as a quote and the mid as a price; and `daily`, each
+it, the bid and offer as a quote and the mid as a price, and each pair's
+one-minute bar of the mid (minutes.py; item 95); and `daily`, each
 pair's day on New York's day ending at 17:00, built from TrueFX's ticks
 (days.py) or from its history files where a person has put them in storage
 (history.py): its close, its closing bid and offer, and its bar of the mid.
@@ -28,8 +29,11 @@ what they are and the business date (`EURUSD:close:2026-10-09`,
 `EURUSD:bid:...`, `EURUSD:ask:...`, the bar `EURUSD:1d:...`), valid over
 the day, so the day still forming is restated under the same keys as it
 fills, and a closed day carries its `published` time, the day's end, and
-its event time, its last tick's. Each names the raw record its last tick
-was read from.
+its event time, its last tick's. A live minute's bar is keyed by its pair
+and the minute's first millisecond (`EURUSD:1m:1791547260000`), valid over
+the minute, published at its end, its event time its last tick's, with no
+business date; it is recorded once, closed, and never restated. Each names
+the raw record its last tick was read from.
 
 **Wants** (W10.7): the lake asks for a business date, a range or the latest
 (the past week's days) of the daily dataset, or the latest of the live one,
@@ -38,8 +42,11 @@ for subjects; each subject is recorded against the want or declined:
 TrueFX serves this session has it as the base, `beyond_history` before the
 first day the plugin holds, `source_silent` where TrueFX said nothing for
 it (a weekend, a day not reached yet). A standing want keeps its subjects
-current until withdrawn: the live dataset from each poll, the daily
-dataset's forming day every five minutes.
+current until withdrawn: the live dataset's quotes and mids from each poll,
+its bars as each minute closes, the daily dataset's forming day every five
+minutes. The live dataset's bars are a minute long: a want of bars of
+another length is `not_covered` (`interval_ns` 0, naming no length, is a
+minute's); one asked once before a minute closed is `source_silent`.
 
 **Liveness** (contract v27, W10.4; ruling 418): while a standing want keeps
 the live dataset current, each poll TrueFX answers is recorded as the live
@@ -80,6 +87,7 @@ from .client import TrueFX, latest
 from .days import DayBar, DayBook, business_date, day_bounds
 from .declared import DAILY, LIVE
 from .history import History
+from .minutes import MINUTE_NS, MinuteBar, MinuteBook
 from .pairs import Pair, PairMap, currencies
 from .rates import Rate
 
@@ -171,6 +179,12 @@ class Work(data.Role):
     #: Each pair's latest rate, and the time of the one last recorded live.
     latest: dict[Pair, Rate] = field(default_factory=dict)
     sent_live: dict[Pair, int] = field(default_factory=dict)
+    #: Item 95: each pair's one-minute bars on the live dataset, the start
+    #: of the last one recorded for a standing want, and when the last poll
+    #: was asked.
+    minutes: MinuteBook = field(default_factory=MinuteBook)
+    sent_bars: dict[Pair, int] = field(default_factory=dict)
+    polled_ns: int = 0
     #: The closed days pushed since it started, by pair and day: the last
     #: tick each was pushed with.
     pushed: dict[tuple[str, date], int] = field(default_factory=dict)
@@ -186,10 +200,15 @@ class Work(data.Role):
     #: invalid), as the SDK's `Wants.record` does for the plugins on it.
     latency: Any = None
     quality: EdgeChecks = field(default_factory=EdgeChecks)
+    #: The live dataset's minute bars judged apart from its quotes and mids:
+    #: a bar's time is its minute's end, an instant's its own, so neither is
+    #: held out of order or a duplicate against the other.
+    bar_checks: EdgeChecks = field(default_factory=EdgeChecks)
 
     def __post_init__(self) -> None:
         # The edge's checks on the plugin's clock, as it stands each time.
         self.quality.clock_ns = lambda: self.clock_ns()
+        self.bar_checks.clock_ns = lambda: self.clock_ns()
 
     # ── Names ────────────────────────────────────────────────────────────
 
@@ -210,6 +229,7 @@ class Work(data.Role):
         self.book.save()
         self.client, self.pairs, self.book, self.history = client, pairs, book, history
         self.latest, self.sent_live, self.pushed, self.unnamed = {}, {}, {}, set()
+        self.minutes, self.sent_bars = MinuteBook(), {}
 
     # ── Licences ─────────────────────────────────────────────────────────
 
@@ -407,6 +427,25 @@ class Work(data.Role):
             )
         return prices, bars
 
+    def minute_bar(self, subject: str, bar: MinuteBar) -> Bar:
+        """A pair's closed minute on the live dataset (item 95): the open,
+        high, low and close of its mid, valid over the minute, published at
+        its end, its event time its last tick's; no business date, as no
+        live row has one."""
+        pair = bar.symbol
+        times = [SourceTime(kind="published", at_ns=bar.end_ns),
+                 SourceTime(kind="event", at_ns=bar.last_ns)]  # fmt: skip
+        key = f"{pair.key}:1m:{bar.start_ns // 1_000_000}"
+        return Bar(
+            meta=self._meta(key, subject, LIVE, bar.start_ns, bar.end_ns, times, bar.raw_key),
+            open=Money(bar.open, pair.quote),
+            high=Money(bar.high, pair.quote),
+            low=Money(bar.low, pair.quote),
+            close=Money(bar.close, pair.quote),
+            # Indicative quotes: nothing trades on TrueFX.
+            volume=Decimal(0),
+        )
+
     # ── Recording ────────────────────────────────────────────────────────
 
     def _count(self, done: Any, key: str) -> None:
@@ -429,11 +468,15 @@ class Work(data.Role):
         they answer one. Rows recorded unasked or for a standing want are
         aged and judged at the edge first (contract v28)."""
         if not want_id or want_id in self.standing:
+            # The live dataset's minute bars are recorded as each minute
+            # closes, up to a minute after its first tick: not aged, so the
+            # dataset's edge age stays its quotes' and mids' (item 95).
+            aged = bars if key != LIVE else ()
             if self.latency is not None:
-                for row in (*prices, *bars, *quotes):
+                for row in (*prices, *aged, *quotes):
                     self.latency.aged(self.dataset(key), "AGE_HOP_EDGE", row)
             prices = self.quality.judged(key, prices)
-            bars = self.quality.judged(key, bars)
+            bars = (self.quality if key != LIVE else self.bar_checks).judged(key, bars)
             quotes = self.quality.judged(key, quotes)
         for at in range(0, len(prices), BATCH):
             done = await self.record_prices(prices=list(prices[at : at + BATCH]), want_id=want_id)
@@ -501,6 +544,33 @@ class Work(data.Role):
         await self.send(DAILY, prices, bars, want_id=want_id)
         return declined
 
+    async def record_minutes(
+        self, subjects: Iterable[str], want_id: str, standing: bool
+    ) -> dict[str, str]:
+        """A want of the live dataset's minute bars (item 95): each
+        subject's latest closed minute from every pair it is the base of. A
+        standing want is kept current from the next minute closed, so where
+        none has closed, or the latest was recorded already, nothing is
+        recorded and nothing declined; a want asked once with none closed is
+        source_silent."""
+        declined: dict[str, str] = {}
+        bars: list[Bar] = []
+        for subject, pairs in (await self.serving(subjects)).items():
+            if not pairs:
+                declined[subject] = "not_covered"
+                continue
+            closed = [b for p in pairs if (b := self.minutes.latest.get(p.key)) is not None]
+            if not closed and not standing:
+                declined[subject] = "source_silent"
+            for bar in closed:
+                if standing and bar.start_ns <= self.sent_bars.get(bar.symbol, -1):
+                    continue
+                bars.append(self.minute_bar(subject, bar))
+                if standing:
+                    self.sent_bars[bar.symbol] = bar.start_ns
+        await self.send(LIVE, bars=bars, want_id=want_id)
+        return declined
+
     async def record_live(
         self, subjects: Iterable[str], data_type: str = "", want_id: str = ""
     ) -> dict[str, str]:
@@ -531,13 +601,17 @@ class Work(data.Role):
     # ── Wants ────────────────────────────────────────────────────────────
 
     @staticmethod
-    def serves(key: str, data_type: str, kinds: tuple[int, ...]) -> bool:
-        """Whether a want of `data_type` and `kinds` asks of `key` what it holds."""
+    def serves(key: str, data_type: str, kinds: tuple[int, ...], interval_ns: int = 0) -> bool:
+        """Whether a want of `data_type`, `kinds` and bars of `interval_ns`
+        asks of `key` what it holds. The live dataset's bars are a minute
+        long: a want of another length is not covered (item 95)."""
         if key == DAILY:
             return data_type in ("", PRICE, BAR) and (not kinds or bool(set(kinds) & _DAILY_KINDS))
         if key == LIVE:
             if data_type == QUOTE:
                 return True
+            if data_type == BAR:
+                return interval_ns in (0, MINUTE_NS)
             return data_type in ("", PRICE) and (not kinds or ops.PRICE_KIND_MID in kinds)
         return False
 
@@ -582,12 +656,14 @@ class Work(data.Role):
         self, want: ops.ObservationsWantedEvent, key: str, subjects: list[str],
         kinds: tuple[int, ...],
     ) -> dict[str, str]:  # fmt: skip
-        if not self.serves(key, want.data_type, kinds):
+        if not self.serves(key, want.data_type, kinds, want.interval_ns):
             return {s: "not_covered" for s in subjects}
         if want.standing:
             self.standing[want.want_id] = Standing(
                 want.want_id, key, want.data_type, tuple(subjects), kinds
             )
+        if key == LIVE and want.data_type == BAR:
+            return await self.record_minutes(subjects, want.want_id, want.standing)
         if key == LIVE:
             return await self.record_live(subjects, want.data_type, want.want_id)
         if want.business_date:
@@ -610,15 +686,45 @@ class Work(data.Role):
     # ── Polling and keeping current ──────────────────────────────────────
 
     async def poll_once(self) -> int:
-        """One poll of TrueFX: each tick into its pair's day and kept as the
-        pair's latest. Answers how many ticks were new."""
+        """One poll of TrueFX: each tick into its pair's day and minute and
+        kept as the pair's latest. Answers how many ticks were new. A poll
+        that failed, or a session TrueFX lost, ends each minute being built
+        (minutes.py)."""
+        self.polled_ns = self.clock_ns()
+        failures = self.client.health.failures
         read = await asyncio.to_thread(self.client.poll)
+        if self.client.health.failures > failures:
+            self.minutes.lost()
         new = 0
         for rate in sorted(read.rates, key=lambda r: r.at_ms):
+            self.minutes.add(rate)
             if self.book.add(rate):
                 new += 1
         self.latest.update(latest(read.rates))
         return new
+
+    async def keep_bars(self) -> int:
+        """The live dataset's standing wants of bars (item 95): each
+        whole minute closed since the last poll was asked, recorded once,
+        for every subject wanted whose pair it is. Answers how many."""
+        closed = self.minutes.close(self.polled_ns)
+        wants = [w for w in self.standing.values() if w.key == LIVE and w.data_type == BAR]
+        if not closed or not wants:
+            return 0
+        subject_of: dict[Pair, str] = {}
+        for want in wants:
+            for subject, pairs in (await self.serving(want.subjects)).items():
+                for pair in pairs:
+                    subject_of.setdefault(pair, subject)
+        bars: list[Bar] = []
+        for bar in closed:
+            wanted = subject_of.get(bar.symbol)
+            if wanted is None or bar.start_ns <= self.sent_bars.get(bar.symbol, -1):
+                continue
+            bars.append(self.minute_bar(wanted, bar))
+            self.sent_bars[bar.symbol] = bar.start_ns
+        await self.send(LIVE, bars=bars)
+        return len(bars)
 
     async def keep_live(self) -> None:
         """The live dataset's standing wants: each subject's pairs whose
@@ -629,7 +735,8 @@ class Work(data.Role):
         prices: list[Price] = []
         quotes: list[Quote] = []
         moved: dict[Pair, int] = {}
-        for want in wants:
+        # A want of bars is kept current as each minute closes (keep_bars).
+        for want in [w for w in wants if w.data_type != BAR]:
             for subject, pairs in (await self.serving(want.subjects)).items():
                 for pair in pairs:
                     rate = self.latest.get(pair)
@@ -701,11 +808,11 @@ class Work(data.Role):
 
     async def keep_current(self, sleep: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
         """Poll TrueFX once a second until cancelled: the live standing wants
-        kept current, each closed day pushed, the daily standing wants'
-        forming day every five minutes, and once a minute the days being
-        built saved and the history files looked at again. While TrueFX
-        does not answer, it is asked again after 2, 4, 8 ... seconds, at
-        most a minute apart."""
+        kept current, each minute closed recorded, each closed day pushed, the
+        daily standing wants' forming day every five minutes, and once a
+        minute the days being built saved and the history files looked at
+        again. While TrueFX does not answer, it is asked again after 2, 4,
+        8 ... seconds, at most a minute apart."""
         last_daily = last_saved = 0.0
         last_resolved = time.monotonic()
         failing = 0
@@ -718,6 +825,7 @@ class Work(data.Role):
                     last_resolved = now
                 await self.poll_once()
                 await self.keep_live()
+                await self.keep_bars()
                 await self.push_closed()
                 if now - last_daily >= DAILY_EVERY_SECONDS:
                     await self.keep_daily()

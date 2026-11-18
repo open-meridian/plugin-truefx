@@ -5,13 +5,17 @@ to v22), beside a reader (e2e/reader.py), never reaching TrueFX.
    nowhere, so its polls fail, and Connection says so; nothing is recorded.
    The deployment admin's tool lists the two datasets, `daily` and `live`,
    each on New York's day ending at 17:00, with their modes.
-2. Sample data on: the plugin polls the synthetic feed, three polls on
+2. Licensed and entitled: the admin licenses both datasets and entitles the
+   reader to them; and the reader reads the euro's latest one-minute bars on
+   the live dataset, which nothing has recorded, so the lake asks the
+   plugin to keep them current: a standing want of bars of 60 seconds,
+   which the plugin holds, recording nothing and declining nothing while no
+   minute has closed (item 95).
+3. Sample data on: the plugin polls the synthetic feed, three polls on
    business date 9 October 2026, which closed long ago, so the day it built
    is pushed: the close, the closing bid and offer, and the bar of each of
    the ten pairs, every currency resolved to its cash instrument first, and
    each poll's new ticks restate the pairs that moved.
-3. Licensed and entitled: the admin licenses both datasets and entitles the
-   reader to them.
 4. Wanted from the history files: the reader reads the euro's close on 8
    October, which nothing has recorded; the lake asks the plugin, which
    records it from TrueFX's history file, EUR/USD's last mid that day,
@@ -23,7 +27,11 @@ to v22), beside a reader (e2e/reader.py), never reaching TrueFX.
 6. Live: the reader follows the euro, whose latest quote stands as a want of
    the live dataset; the plugin records each EUR pair's top of book, its bid
    and offer and no size, and each poll's liveness (contract v27), which the
-   reader lists beside each dataset's declared delay, none.
+   reader lists beside each dataset's declared delay, none. The euro's
+   minute that closed while its bars' want stood -- EUR/USD's at 16:59 New
+   York on the 9th, the one minute the feed's polls heard whole -- was
+   recorded once, unasked, for that want: the mid's open, high, low and
+   close, 1.164535, valid over the minute, published at its end.
 7. Parity: the plugin's two read tools answer through the deployment's MCP
    what its two pages show, the data role's fields under its names, the
    username not set and the session unauthenticated, each dataset licensed.
@@ -53,6 +61,10 @@ PAIRS = ["AUDUSD", "EURCHF", "EURGBP", "EURJPY", "EURUSD", "GBPJPY", "GBPUSD", "
          "USDCHF", "USDJPY"]
 #: 9 October 2026 ended at 17:00 New York, 21:00 UTC.
 CLOSED_9TH_NS = 1791579600 * 10**9
+#: A minute bar's length, and the 9th's last minute, 16:59 New York, which
+#: the feed's third poll fell in: its first millisecond.
+MINUTE_NS = 60 * 10**9
+MINUTE_9TH_MS = 1791579540000
 
 
 class Failed(Exception):
@@ -161,34 +173,8 @@ def run():
         must(entry["modes"] == modes and entry["day_time_zone"] == "America/New_York"
              and entry["day_end_minute"] == 1020, f"step 1, {dataset}'s entry: {entry}")
 
-    # 2. Sample data: the synthetic feed polled, 9 October built and pushed.
-    runner("settings", "--instance", VENDOR, "sample_data=true")
-    ids = read("/resolve")
-    codes = {instrument_id: code for code, instrument_id in ids.items()}
-
-    # Each poll's new ticks restate the closed day: EUR/USD moved in all
-    # three polls, so its rows reach version 3; USD/JPY's 2; the rest 1.
-    def pushed():
-        rows = rows_of(store_lake(codes), DAILY)
-        versions = {row[4]: int(row[5]) for row in rows}
-        return rows if versions.get("EURUSD:close:2026-10-09") == 3 else None
-    rows = until(120, pushed, "step 2, the 9th's days were not pushed and restated")
-    latest = {}
-    for row in rows:
-        latest[row[4]] = max(latest.get(row[4], 0), int(row[5]))
-    expected = sorted(f"{pair}:{what}:2026-10-09" for pair in PAIRS
-                      for what in ("close", "bid", "ask", "1d"))
-    must(sorted(latest) == expected, f"step 2, each pair's close, bid, ask and bar: {latest}")
-    must({k: v for k, v in latest.items() if v != 1} == {
-        **{f"EURUSD:{w}:2026-10-09": 3 for w in ("close", "bid", "ask", "1d")},
-        **{f"USDJPY:{w}:2026-10-09": 2 for w in ("close", "bid", "ask", "1d")}},
-         f"step 2, restated as the polls' ticks came: {latest}")
-    must(all(row[9] == "2026-10-09" and row[8] == "" for row in rows),
-         f"step 2, each row on its business date, no venue: {rows}")
-    eurusd = next(row for row in rows if row[4] == "EURUSD:close:2026-10-09")
-    must(eurusd[6] == "EUR", f"step 2, EUR/USD's close is the euro's: {eurusd}")
-
-    # 3. Licensed and entitled.
+    # 2. Licensed and entitled; the euro's one-minute bars on the live
+    #    dataset wanted, kept current from the next minute closed.
     runner("licence", DAILY, "kept=true", "retention_days=0", "derived_use=true", "display=true",
            "personal_use=false", "note=TrueFX's daily closes and bars.")
     runner("licence", LIVE, "kept=true", "retention_days=2", "display=true",
@@ -196,6 +182,42 @@ def run():
     runner("grant", "--instance", "reader", "--level", "read", "--role", "signal")
     for dataset in (DAILY, LIVE):
         runner("entitle", "--instance", "reader", dataset, "note=The e2e's reader.")
+    ids = read("/resolve")
+    codes = {instrument_id: code for code, instrument_id in ids.items()}
+    bars_asked = f"/bars?subject={ids['EUR']}&interval={MINUTE_NS}&dataset={LIVE}"
+    asked = read(bars_asked)
+    must(not asked["bars"], f"step 2, no bar recorded yet: {asked}")
+    until(60, lambda: call(named["read_datasets"])["standing_wants"] >= 1 or None,
+          "step 2, the plugin did not hold the euro's bars' standing want")
+    lines = store_lake(codes)
+    must(any(line.startswith(f"want|{LIVE}|asked|EUR") for line in lines)
+         and not any(line.startswith(f"want|{LIVE}|declined") for line in lines),
+         f"step 2, the euro's bars asked of the live dataset, nothing declined: {lines}")
+
+    # 3. Sample data: the synthetic feed polled, 9 October built and pushed.
+    runner("settings", "--instance", VENDOR, "sample_data=true")
+
+    # Each poll's new ticks restate the closed day: EUR/USD moved in all
+    # three polls, so its rows reach version 3; USD/JPY's 2; the rest 1.
+    def pushed():
+        rows = rows_of(store_lake(codes), DAILY)
+        versions = {row[4]: int(row[5]) for row in rows}
+        return rows if versions.get("EURUSD:close:2026-10-09") == 3 else None
+    rows = until(120, pushed, "step 3, the 9th's days were not pushed and restated")
+    latest = {}
+    for row in rows:
+        latest[row[4]] = max(latest.get(row[4], 0), int(row[5]))
+    expected = sorted(f"{pair}:{what}:2026-10-09" for pair in PAIRS
+                      for what in ("close", "bid", "ask", "1d"))
+    must(sorted(latest) == expected, f"step 3, each pair's close, bid, ask and bar: {latest}")
+    must({k: v for k, v in latest.items() if v != 1} == {
+        **{f"EURUSD:{w}:2026-10-09": 3 for w in ("close", "bid", "ask", "1d")},
+        **{f"USDJPY:{w}:2026-10-09": 2 for w in ("close", "bid", "ask", "1d")}},
+         f"step 3, restated as the polls' ticks came: {latest}")
+    must(all(row[9] == "2026-10-09" and row[8] == "" for row in rows),
+         f"step 3, each row on its business date, no venue: {rows}")
+    eurusd = next(row for row in rows if row[4] == "EURUSD:close:2026-10-09")
+    must(eurusd[6] == "EUR", f"step 3, EUR/USD's close is the euro's: {eurusd}")
 
     # 4. Wanted: the 8th, from the history files; the yen declined.
     def close(code, day, count=1):
@@ -257,6 +279,23 @@ def run():
          and max(listed[LIVE]["liveness"]) > 0 and not listed[DAILY]["liveness"],
          f"step 6, the live dataset alive, no delay declared: {listed}")
 
+    # 6. The euro's minute bars, kept current: EUR/USD's minute closed while
+    #    the want stood, recorded once, unasked.
+    [bar] = until(60, lambda: read(bars_asked)["bars"] or None,
+                  "step 6, the euro's minute bar was not recorded")
+    must(bar["row_key"] == f"EURUSD:1m:{MINUTE_9TH_MS}" and bar["dataset"] == LIVE
+         and [bar[f] for f in ("open", "high", "low", "close")] == ["1.164535"] * 4
+         and bar["instrument_id"] == ids["USD"] and bar["volume"] == "0"
+         and bar["valid_until_ns"] - bar["valid_from_ns"] == MINUTE_NS
+         and bar["valid_until_ns"] == CLOSED_9TH_NS and bar["published"] == [CLOSED_9TH_NS]
+         and not bar["business_date"] and bar["version"] == 1
+         and bar["raw"].startswith("responses/"),
+         f"step 6, EUR/USD's minute of the mid, as polled: {bar}")
+    minute_rows = [row for row in rows_of(store_lake(codes), LIVE) if row[2] == "bar"]
+    must([(row[4], row[5], row[7]) for row in minute_rows]
+         == [(f"EURUSD:1m:{MINUTE_9TH_MS}", "1", str(MINUTE_NS))],
+         f"step 6, one minute bar in the live dataset, recorded once: {minute_rows}")
+
     # 7. Parity.
     connection = call(named["read_connection"])
     must(connection["mode"] == "Sample data" and connection["session"] == "Unauthenticated"
@@ -311,13 +350,15 @@ def run():
 
     print(f"e2e OK in {int(time.time() - started)}s: on core's plugin harness, TrueFX unreachable "
           "said on Connection with nothing recorded; the daily and live datasets listed by the "
-          "deployment admin's tool on New York's day ending at 17:00; sample data's three polls "
+          "deployment admin's tool on New York's day ending at 17:00; licensed and entitled, the "
+          "euro's one-minute bars on live wanted and kept current; sample data's three polls "
           "built 9 October and pushed each of the ten pairs' close, closing bid and offer and "
-          "bar, every currency resolved; licensed and entitled; the euro's close on 8 October "
+          "bar, every currency resolved; the euro's close on 8 October "
           "wanted and recorded from TrueFX's history file (1.163925 in dollars) and the "
           "dollar's in yen (149.380), the yen's own instrument declined as not covered; each "
           "EUR pair's close on the 9th, published at the day's end; the euro followed and each "
-          "EUR pair's top of book recorded as a quote with no size; read_connection and "
+          "EUR pair's top of book recorded as a quote with no size, and EUR/USD's minute closed "
+          "while the want stood recorded once as a bar of the mid; read_connection and "
           "read_datasets answering what the pages show; raw responses in storage; `store lake` "
           "numbering each dataset's rows with no holes; and restarted, nothing recorded twice")
 

@@ -16,11 +16,26 @@ Two datasets:
   close (the last mid), its closing bid and offer, and its bar of the mid.
   Pushed as each day closes, and pulled for a past day the lake wants.
 - **`<instance>:live`**, TrueFX's top of book: its bid and offer as a quote,
-  its mid as a price. Pulled for the latest, or kept current while a reader
-  wants it. A tick missed is never served again: a gap in it is not
-  recovered, while a gap in the daily dataset is asked for again.
+  its mid as a price; and each pair's one-minute bar of the mid. Pulled for
+  the latest, or kept current while a reader wants it. A tick missed is
+  never served again: a gap in it is not recovered, while a gap in the daily
+  dataset is asked for again.
 
 Neither dataset declares a delay: TrueFX describes its rates as live.
+
+## One-minute bars
+
+For a reader that wants bars on the live dataset a minute long, the plugin
+records each pair's minute once, as it closes: the open, high, low and close
+of the mid over the ticks it polled in that minute, with volume 0. That is
+one row per pair per minute, rather than a row for every tick. A pair with
+no tick in a minute has no bar for it.
+
+A minute the plugin did not poll from start to end is never a bar: the
+minute it starts or restarts in, and a minute in which a poll failed or
+TrueFX lost the session. So a bar is never recorded twice and never made
+up; the lake simply has no bar for that minute. Bars of any other length
+are not covered.
 
 ## Liveness
 
