@@ -43,7 +43,11 @@ admin approves it.
 - **Two datasets, the names approved 2026-10-13**: `<instance>:live`,
   TrueFX's top of book as a quote (bid and offer, no size: TrueFX states
   none) and its mid as a price of kind `mid`, keyed `<PAIR>:q:<millis>` and
-  `<PAIR>:mid:<millis>`, with no business date; and `<instance>:daily`, each
+  `<PAIR>:mid:<millis>`, with no business date, and each pair's one-minute
+  bar of the mid for a want of bars a minute long (`minutes.py`; item 95:
+  recorded thinned, one row per pair per minute), keyed
+  `<PAIR>:1m:<the minute's first millis>`, recorded once as the minute
+  closes, never for a minute not polled whole; and `<instance>:daily`, each
   pair's day on New York's day ending at 17:00 (`days.py`): its close (the
   last mid), its closing bid and offer, and its bar of the mid (volume 0:
   TrueFX's rates are indicative, nothing trades), keyed

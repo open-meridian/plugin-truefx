@@ -14,6 +14,15 @@
 | Datasets: **not resolved:** and a currency's code | Its ISO 4217 code found no cash instrument, or two | Complete or merge the instrument at the Instruments page; its pairs are recorded from the next poll |
 | A subject declined, *not covered* | No pair TrueFX serves has it as the base: the yen's own price, for one | Read the other currency's price in it, and invert it in the reader |
 
+## One-minute bars
+
+| What you see | What it means | What to do |
+|---|---|---|
+| No bar yet for the live dataset | Each bar is recorded as its minute closes, and the minute the plugin started in is never one | Wait for the next whole minute to close |
+| A minute missing among the bars | The pair had no tick in it, or a poll failed or TrueFX lost the session during it: that minute was not polled whole | Nothing to do; Connection shows the last error if TrueFX stopped answering |
+| A want of bars declined, *not covered* | The live dataset's bars are a minute long; another length was asked | Ask for bars a minute long, and build longer ones from them in the reader |
+| A want of bars declined, *source silent* | Asked once before any minute closed | Ask again once a minute has closed |
+
 ## Days and history
 
 | What you see | What it means | What to do |

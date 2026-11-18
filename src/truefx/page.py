@@ -21,8 +21,8 @@ template's; TrueFX's nuance is added only at the template's blocks:
   heard and each standing want it keeps current, searched and paged by the
   kit's `om-pager` -- "Subjects" -- then a section under TrueFX's name: the
   pairs whose currencies resolved, the currencies not resolved, the days
-  built from its polls, and the history files held and the months they
-  cover.
+  built from its polls, that the live dataset's bars are a minute long (item
+  95), and the history files held and the months they cover.
 
 Each page declares the record it renders (`answers=`), the role's record
 extended with TrueFX's fields, so each is also a read tool on the

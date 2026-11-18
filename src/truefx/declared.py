@@ -16,7 +16,9 @@ interface and the documentation (contract v25), so it can import the pages.
   storage (history.py), and otherwise to the first day it polled.
 - `live`: TrueFX's top of book, its bid and offer as a quote and its mid as
   a price, polled once a second; pulled for the latest, or kept current for
-  a standing want.
+  a standing want. And (item 95) each pair's one-minute bar of the mid,
+  recorded once as its minute closes, for a want of bars a minute long
+  (minutes.py): thinned, one row per pair per minute, never every tick.
 
 TrueFX's rates are indicative, not executable, from Integral's network: no
 venue's. So neither dataset names a venue, and no row does.
@@ -118,7 +120,7 @@ CATALOGUE = [
     DatasetDeclaration(
         key=LIVE,
         vendor=VENDOR,
-        data_types=["meridian.v1.Price", "meridian.v1.Quote"],
+        data_types=["meridian.v1.Price", "meridian.v1.Quote", "meridian.v1.Bar"],
         modes=["pull", "stream"],
         cadence=1,
         history=0,

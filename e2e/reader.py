@@ -16,7 +16,10 @@ harness's runner (`page --instance reader --level read PATH`):
   /prices?subject=ID[&date=D][&kind=K][&dataset=D]
                                               one read: its rows, and what it
                                               left unanswered and why;
-  /quotes?subject=ID                          the latest quotes in force.
+  /quotes?subject=ID                          the latest quotes in force;
+  /bars?subject=ID&interval=NS[&dataset=D]    the latest bars of that length
+                                              in force, and what it left
+                                              unanswered and why.
 
 Standard library and the SDK only; every amount stays text, never a float.
 """
@@ -29,7 +32,7 @@ import urllib.parse
 
 import meridian
 from meridian import Interface, Page, SourceChoice
-from meridian.operations import as_money
+from meridian.operations import as_decimal, as_money
 from meridian.plugin.v1 import operations_pb2 as ops
 from meridian.roles import custody, reporting, signal
 
@@ -67,6 +70,29 @@ def quote_json(quote):
         "bid": side("bid"),
         "ask": side("ask"),
         "sized": quote.HasField("bid_quantity") or quote.HasField("ask_quantity"),
+        "raw": meta.raw.key,
+    }
+
+
+def bar_json(bar):
+    meta = bar.meta
+    amount = lambda field: str(as_money(getattr(bar, field)).amount)  # noqa: E731
+    return {
+        "dataset": meta.source.dataset,
+        "row_key": meta.row_key,
+        "version": meta.version,
+        "business_date": meta.business_date,
+        "subject": meta.subjects[0].entity_id if meta.subjects else "",
+        "open": amount("open"),
+        "high": amount("high"),
+        "low": amount("low"),
+        "close": amount("close"),
+        "instrument_id": as_money(bar.close).instrument_id,
+        "volume": str(as_decimal(bar.volume)),
+        "valid_from_ns": meta.valid_from_ns,
+        "valid_until_ns": meta.valid_until_ns,
+        "published": [t.at_ns for t in meta.source_times
+                      if t.kind == ops.SOURCE_TIME_KIND_PUBLISHED],
         "raw": meta.raw.key,
     }
 
@@ -125,6 +151,14 @@ class Reader:
             answer = await self.signal.list_quotes(
                 subjects=[meridian.SubjectRef(entity_id=s) for s in query["subject"]])
             return {"quotes": [quote_json(q) for q in answer.quotes],
+                    "unanswered": unanswered_json(answer)}
+        if path == "/bars":
+            asked = {"subjects": [meridian.SubjectRef(entity_id=s) for s in query["subject"]],
+                     "interval_ns": int(one("interval") or 0)}
+            if one("dataset"):
+                asked["sources"] = SourceChoice(named=[one("dataset")])
+            answer = await self.reporting.list_bars(**asked)
+            return {"bars": [bar_json(b) for b in answer.bars],
                     "unanswered": unanswered_json(answer)}
         if path == "/prices":
             asked = {"subjects": [meridian.SubjectRef(entity_id=s) for s in query["subject"]]}

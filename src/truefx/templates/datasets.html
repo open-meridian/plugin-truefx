@@ -1,6 +1,7 @@
 {#- The data role's Datasets (meridian/roles/data/datasets.html), TrueFX's
     nuance at its blocks only: a section under TrueFX's name with the pairs,
-    the days built from its polls and the history files held. The wants
+    the days built from its polls, the live dataset's minute bars and the
+    history files held. The wants
     grow, so their table is searched and paged by the kit's om-pager,
     wrapped around the role's table as drawn. -#}
 {% extends "meridian/roles/data/datasets.html" %}
@@ -16,6 +17,6 @@
 {% block vendor_sections %}
 <section class="panel">
 <h2>{{ vendor }}</h2>
-<p class="muted">{{ data.pairs_resolved }} of {{ data.pairs_served }} pairs resolved{% if data.currencies_not_resolved %}; not resolved: {{ data.currencies_not_resolved|join(", ") }}{% endif %}.{% if data.days_built %} {{ data.days_built }} {{ "day" if data.days_built == 1 else "days" }} built from its polls.{% endif %} {% if data.history_files %}{{ data.history_files }} history {{ "file" if data.history_files == 1 else "files" }}, {{ data.history_span }}{% if data.history_not_read %}; {{ data.history_not_read }} lines did not read{% endif %}.{% else %}No history files in storage.{% endif %}{% if data.restated or data.unchanged %} Rows restated {{ data.restated }}, unchanged {{ data.unchanged }}.{% endif %}</p>
+<p class="muted">{{ data.pairs_resolved }} of {{ data.pairs_served }} pairs resolved{% if data.currencies_not_resolved %}; not resolved: {{ data.currencies_not_resolved|join(", ") }}{% endif %}.{% if data.days_built %} {{ data.days_built }} {{ "day" if data.days_built == 1 else "days" }} built from its polls.{% endif %} Live bars are a minute long: each pair's mid, recorded once as the minute closes. {% if data.history_files %}{{ data.history_files }} history {{ "file" if data.history_files == 1 else "files" }}, {{ data.history_span }}{% if data.history_not_read %}; {{ data.history_not_read }} lines did not read{% endif %}.{% else %}No history files in storage.{% endif %}{% if data.restated or data.unchanged %} Rows restated {{ data.restated }}, unchanged {{ data.unchanged }}.{% endif %}</p>
 </section>
 {% endblock %}

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.7.0
+
+On open-meridian 0.36.0, contract 30, as 0.6.0.
+
+- **One-minute bars on `live`** (item 95: TrueFX's live data recorded
+  thinned, one row per pair per minute, never every tick). `live` declares
+  `meridian.v1.Bar` beside its quotes and mids. A want of bars on it a
+  minute long (`interval_ns` 60 s, or 0) is kept current with each pair's
+  minute as it closes: the open, high, low and close of the mid over the
+  ticks polled in it, valid over the minute, published at its end, volume
+  0, keyed `<PAIR>:1m:<the minute's first millisecond>`, recorded once
+  (`minutes.py`). A pair with no tick in a minute has no bar; the minute the
+  plugin starts in, and one in which a poll failed or TrueFX lost the
+  session, is not heard whole and is never a bar, so a restart records no
+  bar twice and none is made up. A want asked once before any minute closed
+  is `source_silent`; bars of any other length are `not_covered`.
+- The bars are judged at the edge apart from the quotes and mids, and not
+  aged: the live dataset's liveness and feed delay are as they were.
+- The Datasets page says live bars are a minute long; its Served row lists
+  `Price, Quote, Bar` for `live`. README and docs/ (Overview, Pages,
+  Troubleshooting) describe the bars; the e2e keeps a standing want of
+  bars on `live` current.
+
 ## 0.6.0
 
 On open-meridian 0.36.0, contract 30, on core aae501d's harness (chart

@@ -28,5 +28,6 @@ What the plugin serves:
 - **Wants:** the wants it heard and the standing wants it keeps current,
   searched and paged; **Subjects**;
 - **TrueFX:** how many pairs have both currencies resolved, the currencies
-  not resolved, the days built from its polls, and the history files held,
-  the months they cover and the lines that did not read.
+  not resolved, the days built from its polls, that the live dataset's bars
+  are a minute long, and the history files held, the months they cover and
+  the lines that did not read.
