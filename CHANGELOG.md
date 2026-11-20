@@ -2,7 +2,9 @@
 
 ## 0.7.1
 
-SDK 0.37.0: waits for a lost sidecar.
+SDK 0.37.1: waits for a lost sidecar; a raw record kept from two threads at
+once waits instead of being dropped; its storage is read once registered, on
+an instance run as shards or with a standby pod the shard's own folder.
 
 ## 0.7.0
 
