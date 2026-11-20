@@ -28,7 +28,7 @@ env:
   # from here. 0.1.60 holds the suites of contract 30 and knows SDK 0.36's
   # shape, and checks docs/ (documentation-sections, documentation-safe) as
   # 0.1.46 began to.
-  MERIDIAN_VERSION: 0.1.60
+  MERIDIAN_VERSION: 0.1.61
 
 jobs:
   check:
