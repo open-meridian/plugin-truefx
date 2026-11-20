@@ -40,7 +40,7 @@ from .declared import SAMPLE_DATA, USERNAME
 from .history import FOLDER, History
 from .page import figures_now, hold, pages
 from .pairs import PairMap
-from .raw import RawStore, storage_root, tend
+from .raw import RawStore, scratch, storage_root, tend
 from .synthetic import HISTORY, Synthetic, copy_history
 from .work import Work
 
@@ -81,8 +81,15 @@ class Lake(Work):
     """The data role's class with its lifecycle (open-meridian 0.35, rulings
     1004, 1005, 1009 to 1023): `meridian.run` delivers each settings to
     `on_settings` -- the first before anything is heard -- starts `run`,
-    again after a backoff should it fail, and calls `on_stop` as it stops."""
+    again after a backoff should it fail, and calls `on_stop` as it stops.
 
+    Its storage is read with the first settings, once the plugin has
+    registered and before `on_start`: on an instance run as shards or with a
+    standby pod, the shard's own folder, known only then (open-meridian
+    0.37.0). Its pair map, days and history are read from it then; on stop
+    it is forgotten, and read afresh when the plugin registers again."""
+
+    #: Its storage, None until read once registered.
     store: RawStore | None = None
 
     async def on_settings(self, delivered: Any) -> None:
@@ -97,8 +104,10 @@ class Lake(Work):
         username = named.strip() if isinstance(named, str) else ""
         log.info("settings delivered: sample data %s, a username %s", sample,
                  "set" if username else "not set")  # fmt: skip
-        assert self.store is not None
-        if sample != (self.client.mode != "live"):
+        opened = self.store is None
+        if self.store is None:
+            self.store = RawStore(storage_root())
+        if opened or sample != (self.client.mode != "live"):
             self.use(*built(self.store, sample, username))
             log.info("answering from %s", self.client.mode)
         self.client.use_username(username)
@@ -122,7 +131,10 @@ class Lake(Work):
         await asyncio.gather(*work)
 
     async def on_stop(self) -> None:
+        """The days being built written, and its storage forgotten:
+        registered again, it may serve another shard."""
         self.book.save()
+        self.store = None
 
     async def _health(self) -> None:
         """Each minute: its datasets' licences read again (contract v20), and
@@ -146,8 +158,10 @@ def main() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
-    store = RawStore(storage_root())
-    lake = Lake(*built(store, sample_data=False, username=""), store=store)
+    # Nothing of storage read before Register (open-meridian 0.37.0): until
+    # the first settings read it, the work stands on a temporary directory,
+    # as where none is granted.
+    lake = Lake(*built(RawStore(scratch()), sample_data=False, username=""))
     # Contract v28 (ruling 518): each row recorded unasked or for a standing
     # want has its age at the edge recorded, reported every 10 seconds
     # (ReportLatency).

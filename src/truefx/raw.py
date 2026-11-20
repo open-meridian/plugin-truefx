@@ -24,7 +24,9 @@ on every heartbeat (`plugin.stored`).
 
 Where the records live: `meridian.edge.storage_dir()` where the deployment
 grants the instance storage (a data plugin is an edge role); otherwise a
-temporary directory, which a restart loses.
+temporary directory, which a restart loses. It is read once the plugin has
+registered: on an instance run as shards or with a standby pod, it is the
+shard's own folder, known only then (open-meridian 0.37.0).
 """
 
 from __future__ import annotations
@@ -53,10 +55,17 @@ NANOS_PER_SECOND = 1_000_000_000
 
 
 def storage_root() -> Path:
-    """The instance's granted storage, else a temporary directory."""
+    """The instance's granted storage, else a temporary directory: read only
+    once the plugin has registered, since before then, on an instance run as
+    shards or with a standby pod, it raises."""
     granted = edge.storage_dir()
     if granted is not None:
         return granted
+    return scratch()
+
+
+def scratch() -> Path:
+    """A temporary directory, which a restart loses."""
     return Path(tempfile.mkdtemp(prefix="meridian-truefx-"))
 
 
